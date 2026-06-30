@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://uo6ekgradkra"]
+
+[ext_resource type="PackedScene" uid="uid://cat1vs6s6dfwf" path="res://assets/characters/character-l.glb" id="1_nawyi"]
+
+[node name="character-l2" unique_id=1445882593 instance=ExtResource("1_nawyi")]

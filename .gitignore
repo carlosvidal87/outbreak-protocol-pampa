@@ -1,0 +1,11 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+.agents/
+.codex/
+
+# ProjectGraph cache (auto-generated index)
+addons/project_graph/.cache/
+
+# Large local assets are distributed outside GitHub.
+assets/_large_files/
