@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ckryyneb476j8"
-path="res://.godot/imported/detail.png-7f840c6d4ebf5dff045e12289a4c827d.ctex"
+path="res://.godot/imported/detail.png-566ff5d9449fb17ada37b22058bdd015.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/terrain/detail.png"
-dest_files=["res://.godot/imported/detail.png-7f840c6d4ebf5dff045e12289a4c827d.ctex"]
+dest_files=["res://.godot/imported/detail.png-566ff5d9449fb17ada37b22058bdd015.ctex"]
 
 [params]
 

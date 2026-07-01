@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://gnuvfo1wpcyq"
-path="res://.godot/imported/color.png-5194abb9174cc0cb996e6a0069415bef.ctex"
+path="res://.godot/imported/color.png-bb5ddc4a5caad6451c7c24dc9da83521.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/terrain/color.png"
-dest_files=["res://.godot/imported/color.png-5194abb9174cc0cb996e6a0069415bef.ctex"]
+dest_files=["res://.godot/imported/color.png-bb5ddc4a5caad6451c7c24dc9da83521.ctex"]
 
 [params]
 

@@ -4,14 +4,14 @@ importer="wavefront_obj"
 importer_version=1
 type="Mesh"
 uid="uid://dsxda0otcgmam"
-path="res://.godot/imported/Cilindro.obj-3d8efcd4b5b59f684670c87d079cbd05.mesh"
+path="res://.godot/imported/Cilindro.obj-506c95129c865a508837a5efd135a102.mesh"
 
 [deps]
 
-files=["res://.godot/imported/Cilindro.obj-3d8efcd4b5b59f684670c87d079cbd05.mesh"]
+files=["res://.godot/imported/Cilindro.obj-506c95129c865a508837a5efd135a102.mesh"]
 
 source_file="res://assets/effects/Cilindro.obj"
-dest_files=["res://.godot/imported/Cilindro.obj-3d8efcd4b5b59f684670c87d079cbd05.mesh", "res://.godot/imported/Cilindro.obj-3d8efcd4b5b59f684670c87d079cbd05.mesh"]
+dest_files=["res://.godot/imported/Cilindro.obj-506c95129c865a508837a5efd135a102.mesh", "res://.godot/imported/Cilindro.obj-506c95129c865a508837a5efd135a102.mesh"]
 
 [params]
 

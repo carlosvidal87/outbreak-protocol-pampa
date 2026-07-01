@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cfo0gh4x6epfu"
-path.s3tc="res://.godot/imported/Ground047_1K-JPG_Displacement.jpg-c437ddea85f7ab30c118acb68110cc7f.s3tc.ctex"
+path.s3tc="res://.godot/imported/Ground047_1K-JPG_Displacement.jpg-26e9d59cd8d471e767f7c4091c6dc354.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -12,7 +12,7 @@ metadata={
 [deps]
 
 source_file="res://assets/materials/Ground_047/Ground047_1K-JPG_Displacement.jpg"
-dest_files=["res://.godot/imported/Ground047_1K-JPG_Displacement.jpg-c437ddea85f7ab30c118acb68110cc7f.s3tc.ctex"]
+dest_files=["res://.godot/imported/Ground047_1K-JPG_Displacement.jpg-26e9d59cd8d471e767f7c4091c6dc354.s3tc.ctex"]
 
 [params]
 

@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://by8y21l8o6fkc"
-path.s3tc="res://.godot/imported/Ground068_1K-JPG_NormalGL.jpg-dc9ed7c93888c6cb523e483b5aee0731.s3tc.ctex"
+path.s3tc="res://.godot/imported/Ground068_1K-JPG_NormalGL.jpg-646b2f0e4ffd617a0584f0f0127b471a.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -12,7 +12,7 @@ metadata={
 [deps]
 
 source_file="res://assets/materials/Ground_68/Ground068_1K-JPG_NormalGL.jpg"
-dest_files=["res://.godot/imported/Ground068_1K-JPG_NormalGL.jpg-dc9ed7c93888c6cb523e483b5aee0731.s3tc.ctex"]
+dest_files=["res://.godot/imported/Ground068_1K-JPG_NormalGL.jpg-646b2f0e4ffd617a0584f0f0127b471a.s3tc.ctex"]
 
 [params]
 
