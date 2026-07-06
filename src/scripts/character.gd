@@ -140,6 +140,7 @@ var flashlight_enabled := false
 @onready var soldier_model: Node3D = $Ch35_nonPBR
 @onready var muzzle_flash: OmniLight3D = $"Camera3D/MuzzleFlash"
 @onready var flashlight: SpotLight3D = $"Camera3D/Flashlight"
+@onready var flashlight_fill: OmniLight3D = $"Camera3D/FlashlightFill"
 @onready var raycast: RayCast3D = $"Camera3D/RayCast3D"
 @onready var hitmarker: Label = $HUD/Hitmarker
 @onready var hud: CanvasLayer = $HUD
@@ -850,6 +851,13 @@ func set_flashlight_enabled(enabled: bool) -> void:
 	flashlight.light_specular = 0.35
 	flashlight.shadow_bias = 0.045
 	flashlight.shadow_enabled = enabled and bool(GraphicsSettings.get_setting("quality.flashlight_shadows", false))
+	if flashlight_fill:
+		flashlight_fill.visible = enabled
+		flashlight_fill.light_color = Color(0.95, 0.88, 0.72, 1.0)
+		flashlight_fill.light_energy = 1.15 if enabled else 0.0
+		flashlight_fill.omni_range = 9.0
+		flashlight_fill.omni_attenuation = 1.8
+		flashlight_fill.light_specular = 0.12
 
 
 func _clamp_pitch() -> void:
