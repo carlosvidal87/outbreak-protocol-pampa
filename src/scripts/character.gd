@@ -6,7 +6,8 @@ const SoldierVisualHelper = preload("res://src/scripts/soldier_visual_helper.gd"
 
 const WALK_SPEED = 5.0
 const SPRINT_SPEED = 8.0
-const JUMP_VELOCITY = 6.0
+const JUMP_HEIGHT := 1.05
+const JUMP_TIME_TO_APEX := 0.38
 const STEP_HEIGHT := 0.45
 const STEP_FORWARD_DISTANCE := 0.55
 const STEP_DOWN_DISTANCE := 0.8
@@ -131,6 +132,7 @@ var weapon_kick := Vector3.ZERO
 var weapon_rot_kick := 0.0
 @export var is_local_player := true
 var is_third_person := false
+var flashlight_enabled := false
 
 @onready var camera: Camera3D = $Camera3D
 @onready var third_person_camera_pivot: Node3D = $ThirdPersonCameraPivot
@@ -144,6 +146,7 @@ var is_third_person := false
 
 # refs da arma na mao
 var weapon_model: Node3D = null
+var weapon_cache: Dictionary = {}
 var blaster_default_pos := Vector3(0.4, -0.3, -0.8)
 var blaster_default_rot := Vector3(0, 0, 0)
 
@@ -194,6 +197,8 @@ func _ready() -> void:
 	if weapon_model:
 		blaster_default_pos = weapon_model.position
 		blaster_default_rot = weapon_model.rotation
+	_cache_weapon_models()
+	equip_weapon(current_weapon_id)
 		
 	# Reseta o inventário da arma base pra garantir
 	inventory["blaster-a"]["mag"] = WEAPONS["blaster-a"]["mag_size"]
@@ -277,6 +282,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_F3:
 			_toggle_third_person()
+		elif event.physical_keycode == KEY_F:
+			set_flashlight_enabled(not flashlight_enabled)
 		elif event.physical_keycode == KEY_1:
 			_try_buy_weapon("blaster-d")
 		elif event.physical_keycode == KEY_2:
@@ -377,6 +384,26 @@ func _apply_player_view_mode() -> void:
 		third_person_pistol.visible = not is_local_player or is_third_person
 
 
+func _cache_weapon_models() -> void:
+	for weapon_id in WEAPONS.keys():
+		var weapon_instance := camera.get_node_or_null(weapon_id) as Node3D
+		if not weapon_instance:
+			var packed_scene = load(WEAPONS[weapon_id]["model_path"]) as PackedScene
+			if packed_scene:
+				weapon_instance = packed_scene.instantiate() as Node3D
+				if weapon_instance:
+					weapon_instance.name = weapon_id
+					camera.add_child(weapon_instance)
+
+		if not weapon_instance:
+			continue
+
+		weapon_instance.position = blaster_default_pos
+		weapon_instance.rotation = blaster_default_rot
+		weapon_instance.visible = false
+		weapon_cache[weapon_id] = weapon_instance
+
+
 func _cycle_weapon(direction: int) -> void:
 	if is_reloading or is_meleeing or unlocked_weapon_ids.size() <= 1:
 		return
@@ -435,15 +462,14 @@ func _try_buy_weapon(w_id: String) -> void:
 
 
 func equip_weapon(weapon_id: String) -> void:
-	if weapon_model and is_instance_valid(weapon_model):
-		weapon_model.queue_free()
-
 	current_weapon_id = weapon_id
-	var stats = WEAPONS[weapon_id]
-	var packed_scene = load(stats["model_path"]) as PackedScene
-	if packed_scene:
-		weapon_model = packed_scene.instantiate()
-		camera.add_child(weapon_model)
+	for cached_weapon_id in weapon_cache.keys():
+		var cached_weapon := weapon_cache[cached_weapon_id] as Node3D
+		if cached_weapon:
+			cached_weapon.visible = false
+
+	weapon_model = weapon_cache.get(weapon_id, null) as Node3D
+	if weapon_model:
 		weapon_model.position = blaster_default_pos
 		weapon_model.rotation = blaster_default_rot
 		_apply_player_view_mode()
@@ -479,13 +505,14 @@ func _physics_process(delta: float) -> void:
 		if notify_timer <= 0.0 and notify_label:
 			notify_label.text = ""
 
+	var jump_gravity := _get_jump_gravity()
 	if not is_on_floor():
-		velocity += get_gravity() * delta
+		velocity.y -= jump_gravity * delta
 
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
-		velocity.y = JUMP_VELOCITY
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		velocity.y = _get_jump_velocity()
 
-	var is_sprinting := Input.is_physical_key_pressed(KEY_SHIFT)
+	var is_sprinting := Input.is_action_pressed("sprint")
 	var speed := SPRINT_SPEED if is_sprinting else WALK_SPEED
 	var input_dir := Input.get_vector("a", "d", "w", "s")
 	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
@@ -784,6 +811,14 @@ func _try_step_up(direction: Vector3, speed: float, delta: float) -> bool:
 	return true
 
 
+func _get_jump_velocity() -> float:
+	return (2.0 * JUMP_HEIGHT) / JUMP_TIME_TO_APEX
+
+
+func _get_jump_gravity() -> float:
+	return (2.0 * JUMP_HEIGHT) / (JUMP_TIME_TO_APEX * JUMP_TIME_TO_APEX)
+
+
 func _snap_down_after_step() -> void:
 	var query := PhysicsRayQueryParameters3D.create(
 		global_position + Vector3.UP * 0.2,
@@ -805,12 +840,16 @@ func _snap_down_after_step() -> void:
 func set_flashlight_enabled(enabled: bool) -> void:
 	if not flashlight:
 		return
+	flashlight_enabled = enabled
 	flashlight.visible = enabled
-	flashlight.light_color = Color(0.92, 0.96, 1.0, 1.0)
-	flashlight.light_energy = 7.0 if enabled else 0.0
-	flashlight.spot_range = 55.0
-	flashlight.spot_angle = 38.0
-	flashlight.shadow_enabled = enabled
+	flashlight.light_color = Color(1.0, 0.94, 0.82, 1.0)
+	flashlight.light_energy = 10.5 if enabled else 0.0
+	flashlight.spot_range = 72.0
+	flashlight.spot_angle = 42.0
+	flashlight.spot_attenuation = 0.55
+	flashlight.light_specular = 0.35
+	flashlight.shadow_bias = 0.045
+	flashlight.shadow_enabled = enabled and bool(GraphicsSettings.get_setting("quality.flashlight_shadows", false))
 
 
 func _clamp_pitch() -> void:

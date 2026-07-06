@@ -1,8 +1,5 @@
 extends Node3D
 
-## Spawner - Mantem pressao continua de Corrompidos no mapa.
-## Controla spawn, contagem de kills e drops em fluxo continuo.
-
 const ZOMBIE_SCENE := preload("res://src/scenes/zombie.tscn")
 const SPAWN_RADIUS_MIN := 10.0
 const SPAWN_RADIUS_MAX := 20.0
@@ -12,30 +9,28 @@ const INITIAL_SPAWN_DELAY := 1.0
 const ZOMBIE_DROPS_ENABLED := false
 
 var zombies_active := 0
-var spawn_timer := INITIAL_SPAWN_DELAY
 var kill_count := 0
 var kill_label: Label = null
+var spawn_timer: Timer = null
 
 
 func _ready() -> void:
+	spawn_timer = Timer.new()
+	spawn_timer.name = "SpawnTimer"
+	spawn_timer.wait_time = SPAWN_COOLDOWN
+	spawn_timer.one_shot = false
+	spawn_timer.timeout.connect(_on_spawn_timer_timeout)
+	add_child(spawn_timer)
+
 	await NavigationServer3D.map_changed
 	_update_ui()
+	spawn_timer.start(INITIAL_SPAWN_DELAY)
 
 
-func _process(delta: float) -> void:
-	_process_spawning(delta)
-
-
-func _process_spawning(delta: float) -> void:
+func _on_spawn_timer_timeout() -> void:
 	if zombies_active >= MAX_CONCURRENT_ZOMBIES:
 		return
-
-	spawn_timer -= delta
-	if spawn_timer > 0.0:
-		return
-
 	_spawn_zombie()
-	spawn_timer = SPAWN_COOLDOWN
 
 
 func _spawn_zombie() -> void:

@@ -5,7 +5,7 @@ const MenuControllerScript = preload("res://src/scripts/menu_controller.gd")
 
 const GAME_TITLE := "OUTBREAK PROTOCOL: PAMPA"
 const MAP_NAME := "ESTANCIA QUEIMADA"
-const GAMEPLAY_SCENE := "res://src/scenes/node_3d.tscn"
+const LOADING_SCENE := "res://src/scenes/loading_screen.tscn"
 const LOGO_TEXTURE_PATH := "res://assets/ui/game-logo.png"
 const MAP_LOGO_TEXTURE_PATH := "res://assets/ui/map-logo.png"
 const BACKGROUND_TEXTURE_PATH := "res://assets/ui/Menu-background.png"
@@ -32,6 +32,8 @@ const PANEL_BORDER := Color(0.45, 0.48, 0.50, 0.34)
 var graphics_controller = null
 var operator_model: Node3D = null
 var operator_anim_player: AnimationPlayer = null
+var operator_viewport: SubViewport = null
+var menu_preview_root: Node3D = null
 var operator_anim_ok := false
 var selected_mode := "solo"
 var selected_map_name := MAP_NAME
@@ -40,6 +42,7 @@ var mode_cards: Dictionary = {}
 var selected_map_label: Label = null
 var map_info_panel: PanelContainer = null
 var map_selector_panel: PanelContainer = null
+var is_starting_game := false
 
 
 func _ready() -> void:
@@ -51,6 +54,9 @@ func _ready() -> void:
 	_create_3d_viewport()
 	_create_ui_layer()
 	_create_graphics_controller()
+	GraphicsSettings.apply_to_viewport(get_viewport())
+	GraphicsSettings.apply_to_menu_preview(menu_preview_root)
+	_keep_menu_preview_live()
 	_play_menu_fade_in()
 
 
@@ -100,16 +106,18 @@ func _create_3d_viewport() -> void:
 
 	var viewport := SubViewport.new()
 	viewport.name = "OperatorViewport"
-	viewport.size = Vector2i(1280, 720)
+	viewport.size = Vector2i(960, 540)
 	viewport.disable_3d = false
 	viewport.own_world_3d = true
 	viewport.transparent_bg = true
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport_container.add_child(viewport)
+	operator_viewport = viewport
 
 	var world_root := Node3D.new()
 	world_root.name = "Menu3DWorld"
 	viewport.add_child(world_root)
+	menu_preview_root = world_root
 
 	_create_environment(world_root)
 	_create_lighting(world_root)
@@ -145,7 +153,7 @@ func _create_lighting(root: Node3D) -> void:
 	key_light.rotation_degrees = Vector3(-30.0, 15.0, 0.0)
 	key_light.light_energy = 2.6
 	key_light.light_color = Color(0.92, 0.95, 1.0, 1.0)
-	key_light.shadow_enabled = true
+	key_light.shadow_enabled = false
 	root.add_child(key_light)
 
 	var rim_light := SpotLight3D.new()
@@ -180,7 +188,7 @@ func _create_lighting(root: Node3D) -> void:
 	face_light.look_at(Vector3(-2.2, 1.05, 0.0), Vector3.UP)
 
 
-func _create_stage(root: Node3D) -> void:
+func _create_stage(_root: Node3D) -> void:
 	pass
 
 
@@ -215,9 +223,12 @@ func _create_operator(root: Node3D) -> void:
 			push_warning("Menu principal nao conseguiu tocar animacoes do Soldier. Soldier foi ocultado para evitar T-pose.")
 			operator_model.visible = false
 			_create_operator_fallback(root)
+			call_deferred("_suspend_menu_preview_render")
 			return
 
 		operator_model.position = OPERATOR_FINAL_POSITION
+		call_deferred("_queue_menu_preview_frame")
+		call_deferred("_suspend_menu_preview_render")
 		return
 
 	_play_operator_entry()
@@ -228,6 +239,7 @@ func _play_operator_entry() -> void:
 		return
 
 	var entry_duration: float = _get_operator_entry_duration()
+	_keep_menu_preview_live()
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.set_ease(Tween.EASE_OUT)
@@ -243,6 +255,8 @@ func _play_operator_entry() -> void:
 		"idle",
 		OPERATOR_IDLE_BLEND_TIME
 	)
+	await tween.finished
+	_suspend_menu_preview_render()
 
 
 func _get_operator_entry_duration() -> float:
@@ -513,6 +527,8 @@ func _create_graphics_controller() -> void:
 	graphics_controller = MenuControllerScript.new()
 	graphics_controller.pause_enabled = false
 	add_child(graphics_controller)
+	if graphics_controller.has_method("set_menu_preview_root"):
+		graphics_controller.set_menu_preview_root(menu_preview_root)
 
 
 func _on_settings_pressed() -> void:
@@ -521,8 +537,13 @@ func _on_settings_pressed() -> void:
 
 
 func _on_play_pressed() -> void:
+	if is_starting_game:
+		return
+
+	is_starting_game = true
 	get_tree().paused = false
-	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	await _fade_screen_to_black(0.24)
+	get_tree().change_scene_to_file(LOADING_SCENE)
 
 
 func _on_mode_card_input(event: InputEvent, mode: String) -> void:
@@ -679,11 +700,46 @@ func _create_button_style(bg: Color, border: Color) -> StyleBoxFlat:
 
 
 func _make_material(color: Color, roughness: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = roughness
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return material
+	var unshaded_material := StandardMaterial3D.new()
+	unshaded_material.albedo_color = color
+	unshaded_material.roughness = roughness
+	unshaded_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return unshaded_material
+
+
+func _fade_screen_to_black(duration: float) -> void:
+	var fade := ColorRect.new()
+	fade.name = "MenuFadeOut"
+	fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fade.color = Color.BLACK
+	fade.mouse_filter = Control.MOUSE_FILTER_STOP
+	fade.modulate = Color(1, 1, 1, 0)
+	fade.z_index = 200
+	add_child(fade)
+
+	var tween := create_tween()
+	tween.tween_property(fade, "modulate:a", 1.0, duration)
+	await tween.finished
+
+
+func _keep_menu_preview_live() -> void:
+	if operator_viewport:
+		operator_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+
+
+func _queue_menu_preview_frame() -> void:
+	if operator_viewport and operator_viewport.render_target_update_mode != SubViewport.UPDATE_ALWAYS:
+		operator_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+
+
+func _suspend_menu_preview_render() -> void:
+	if operator_viewport:
+		operator_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		_queue_menu_preview_frame()
 
 
 func _set_if_property(object: Object, property_name: String, value: Variant) -> void:

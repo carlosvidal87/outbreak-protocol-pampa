@@ -1,54 +1,14 @@
 extends Control
 
+const GraphicsMenuScene = preload("res://src/scenes/graphics_menu.tscn")
+
 @export var pause_enabled := true
 
-var pause_menu: ColorRect
-var graphics_menu: ColorRect
-var graphics_status_label: Label
+var pause_menu: ColorRect = null
+var graphics_menu: Control = null
 var graphics_return_menu := "pause"
-
-const GRAPHICS_CONFIG_PATH := "user://graphics_settings.cfg"
-const GRAPHICS_PRESETS := {
-	"low": {
-		"label": "PC FRACO",
-		"scale": 0.65,
-		"msaa": Viewport.MSAA_DISABLED,
-		"screen_space_aa": Viewport.SCREEN_SPACE_AA_DISABLED,
-		"taa": false,
-		"ssao": false,
-		"glow": false,
-		"fog": false,
-		"shadows": false,
-		"camera_far": 250.0,
-		"light_range_mult": 0.65
-	},
-	"medium": {
-		"label": "EQUILIBRADO",
-		"scale": 0.85,
-		"msaa": Viewport.MSAA_DISABLED,
-		"screen_space_aa": Viewport.SCREEN_SPACE_AA_FXAA,
-		"taa": false,
-		"ssao": false,
-		"glow": true,
-		"fog": true,
-		"shadows": false,
-		"camera_far": 400.0,
-		"light_range_mult": 0.85
-	},
-	"high": {
-		"label": "QUALIDADE",
-		"scale": 1.0,
-		"msaa": Viewport.MSAA_2X,
-		"screen_space_aa": Viewport.SCREEN_SPACE_AA_FXAA,
-		"taa": true,
-		"ssao": true,
-		"glow": true,
-		"fog": true,
-		"shadows": true,
-		"camera_far": 600.0,
-		"light_range_mult": 1.0
-	}
-}
+var menu_preview_root: Node = null
+var is_changing_scene := false
 
 
 func _init() -> void:
@@ -62,26 +22,116 @@ func _ready() -> void:
 	anchor_bottom = 1.0
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	_create_pause_menu()
+	if pause_enabled:
+		_create_pause_menu()
 	_create_graphics_menu()
-	_load_graphics_preset()
 
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
-		if graphics_menu.visible:
+	if is_changing_scene:
+		return
+
+	if graphics_menu and graphics_menu.visible:
+		if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
 			get_viewport().set_input_as_handled()
 			_close_graphics_menu()
-			return
+		return
 
-		if not pause_enabled:
-			return
+	if not pause_enabled:
+		return
 
+	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
 		get_viewport().set_input_as_handled()
-		if pause_menu.visible:
+		if pause_menu and pause_menu.visible:
 			resume_game()
 		else:
 			pause_game()
+
+
+func set_menu_preview_root(root: Node) -> void:
+	menu_preview_root = root
+	if graphics_menu and graphics_menu.has_method("set_preview_root"):
+		graphics_menu.call("set_preview_root", menu_preview_root)
+
+
+func pause_game() -> void:
+	if not pause_enabled or is_changing_scene:
+		return
+
+	get_tree().paused = true
+	if pause_menu:
+		pause_menu.visible = true
+	if graphics_menu:
+		graphics_menu.visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func resume_game() -> void:
+	if is_changing_scene:
+		return
+
+	get_tree().paused = false
+	if pause_menu:
+		pause_menu.visible = false
+	if graphics_menu:
+		graphics_menu.visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+
+func open_graphics_menu() -> void:
+	_open_graphics_menu("external")
+
+
+func _open_graphics_menu(return_menu: String) -> void:
+	if is_changing_scene:
+		return
+
+	graphics_return_menu = return_menu
+	if pause_menu:
+		pause_menu.visible = false
+	if graphics_menu and graphics_menu.has_method("open_menu"):
+		graphics_menu.call("open_menu", return_menu)
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func _close_graphics_menu() -> void:
+	if graphics_menu and graphics_menu.has_method("close_menu"):
+		graphics_menu.call("close_menu")
+
+
+func _on_graphics_menu_closed() -> void:
+	if is_changing_scene or not is_inside_tree():
+		return
+
+	if graphics_return_menu == "pause" and pause_enabled and get_tree().paused and pause_menu:
+		pause_menu.visible = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func _on_restart_pressed() -> void:
+	is_changing_scene = true
+	_hide_all_menus()
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func _on_menu_pressed() -> void:
+	is_changing_scene = true
+	_hide_all_menus()
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
+
+
+func _on_quit_pressed() -> void:
+	is_changing_scene = true
+	get_tree().quit()
+
+
+func _hide_all_menus() -> void:
+	if pause_menu:
+		pause_menu.visible = false
+	if graphics_menu:
+		graphics_menu.visible = false
 
 
 func _create_pause_menu() -> void:
@@ -89,7 +139,7 @@ func _create_pause_menu() -> void:
 	pause_menu.visible = false
 	add_child(pause_menu)
 
-	var container := _create_center_container(pause_menu, Vector2(300, 470))
+	var container := _create_center_container(pause_menu, Vector2(320, 480))
 
 	var title := Label.new()
 	title.text = "PAUSADO"
@@ -101,167 +151,28 @@ func _create_pause_menu() -> void:
 	title.add_theme_constant_override("shadow_offset_y", 3)
 	container.add_child(title)
 
-	_add_spacer(container, 40)
+	_add_spacer(container, 36)
 
 	var styles := _make_gray_button_styles()
-	_add_menu_button(container, "RETOMAR JOGO", styles, resume_game)
-	_add_spacer(container, 15)
-	_add_menu_button(container, "RECOMECAR", styles, _on_restart_pressed)
-	_add_spacer(container, 15)
-	_add_menu_button(container, "GRAFICOS", styles, _open_graphics_menu.bind("pause"))
-	_add_spacer(container, 15)
-	_add_menu_button(container, "MENU PRINCIPAL", styles, _on_menu_pressed)
-	_add_spacer(container, 15)
-	_add_menu_button(container, "SAIR", styles, _on_quit_pressed)
+	_add_menu_button(container, "RETOMAR JOGO", styles, resume_game, Vector2(280, 52))
+	_add_spacer(container, 14)
+	_add_menu_button(container, "RECOMECAR", styles, _on_restart_pressed, Vector2(280, 52))
+	_add_spacer(container, 14)
+	_add_menu_button(container, "GRAFICOS", styles, _open_graphics_menu.bind("pause"), Vector2(280, 52))
+	_add_spacer(container, 14)
+	_add_menu_button(container, "MENU PRINCIPAL", styles, _on_menu_pressed, Vector2(280, 52))
+	_add_spacer(container, 14)
+	_add_menu_button(container, "SAIR", styles, _on_quit_pressed, Vector2(280, 52))
 
 
 func _create_graphics_menu() -> void:
-	graphics_menu = _create_fullscreen_panel(Color(0.02, 0.02, 0.02, 0.88))
+	graphics_menu = GraphicsMenuScene.instantiate()
 	graphics_menu.visible = false
+	graphics_menu.connect("closed", Callable(self, "_on_graphics_menu_closed"))
 	add_child(graphics_menu)
 
-	var container := _create_center_container(graphics_menu, Vector2(340, 460))
-
-	var title := Label.new()
-	title.text = "GRAFICOS"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 48)
-	title.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
-	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-	title.add_theme_constant_override("shadow_offset_x", 3)
-	title.add_theme_constant_override("shadow_offset_y", 3)
-	container.add_child(title)
-
-	graphics_status_label = Label.new()
-	graphics_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	graphics_status_label.custom_minimum_size = Vector2(320, 48)
-	graphics_status_label.add_theme_font_size_override("font_size", 18)
-	graphics_status_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-	container.add_child(graphics_status_label)
-
-	_add_spacer(container, 20)
-
-	var styles := _make_gray_button_styles()
-	for preset_id in ["low", "medium", "high"]:
-		_add_menu_button(container, GRAPHICS_PRESETS[preset_id]["label"], styles, _on_graphics_preset_pressed.bind(preset_id), Vector2(280, 50))
-		_add_spacer(container, 12)
-
-	_add_menu_button(container, "VOLTAR", styles, _close_graphics_menu, Vector2(280, 50))
-
-
-func pause_game() -> void:
-	if not pause_enabled:
-		return
-	get_tree().paused = true
-	pause_menu.visible = true
-	graphics_menu.visible = false
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func resume_game() -> void:
-	get_tree().paused = false
-	pause_menu.visible = false
-	graphics_menu.visible = false
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-
-
-func _on_restart_pressed() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
-
-
-func _on_menu_pressed() -> void:
-	get_tree().paused = false
-	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
-
-
-func _on_quit_pressed() -> void:
-	get_tree().quit()
-
-
-func _open_graphics_menu(return_menu: String) -> void:
-	graphics_return_menu = return_menu
-	pause_menu.visible = false
-	graphics_menu.visible = true
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func open_graphics_menu() -> void:
-	_open_graphics_menu("external")
-
-
-func _close_graphics_menu() -> void:
-	graphics_menu.visible = false
-	if graphics_return_menu == "pause":
-		pause_menu.visible = true
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func _on_graphics_preset_pressed(preset_id: String) -> void:
-	_apply_graphics_preset(preset_id)
-	_save_graphics_preset(preset_id)
-
-
-func _load_graphics_preset() -> void:
-	var config := ConfigFile.new()
-	var err := config.load(GRAPHICS_CONFIG_PATH)
-	var preset_id := "low"
-	if err == OK:
-		preset_id = str(config.get_value("graphics", "preset", "low"))
-	if not GRAPHICS_PRESETS.has(preset_id):
-		preset_id = "low"
-	_apply_graphics_preset(preset_id)
-
-
-func _save_graphics_preset(preset_id: String) -> void:
-	var config := ConfigFile.new()
-	config.set_value("graphics", "preset", preset_id)
-	config.save(GRAPHICS_CONFIG_PATH)
-
-
-func _apply_graphics_preset(preset_id: String) -> void:
-	if not GRAPHICS_PRESETS.has(preset_id):
-		return
-
-	var preset: Dictionary = GRAPHICS_PRESETS[preset_id]
-	var viewport := get_viewport()
-	viewport.scaling_3d_scale = preset["scale"]
-	viewport.msaa_3d = preset["msaa"]
-	viewport.screen_space_aa = preset["screen_space_aa"]
-	viewport.use_taa = preset["taa"]
-
-	var camera := viewport.get_camera_3d()
-	if camera:
-		camera.far = preset["camera_far"]
-
-	var scene := get_tree().current_scene
-	if scene:
-		_apply_graphics_to_node(scene, preset)
-
-	if graphics_status_label:
-		graphics_status_label.text = "Preset atual: %s" % preset["label"]
-
-
-func _apply_graphics_to_node(node: Node, preset: Dictionary) -> void:
-	if node is Light3D:
-		var light := node as Light3D
-		light.shadow_enabled = preset["shadows"]
-		if light is OmniLight3D:
-			light.omni_range = 3.0 * float(preset["light_range_mult"])
-		elif light is SpotLight3D:
-			light.spot_range = 25.0 * float(preset["light_range_mult"])
-		elif light is DirectionalLight3D:
-			light.directional_shadow_max_distance = preset["camera_far"]
-
-	if node is WorldEnvironment:
-		var world_env := node as WorldEnvironment
-		if world_env.environment:
-			world_env.environment.ssao_enabled = preset["ssao"]
-			world_env.environment.glow_enabled = preset["glow"]
-			world_env.environment.fog_enabled = preset["fog"]
-
-	for child in node.get_children():
-		_apply_graphics_to_node(child, preset)
+	if menu_preview_root and graphics_menu.has_method("set_preview_root"):
+		graphics_menu.call("set_preview_root", menu_preview_root)
 
 
 func _create_fullscreen_panel(color: Color) -> ColorRect:
@@ -300,14 +211,6 @@ func _add_menu_button(container: BoxContainer, text: String, styles: Dictionary,
 	btn.pressed.connect(callback)
 	container.add_child(btn)
 	return btn
-
-
-func _make_red_button_styles() -> Dictionary:
-	return {
-		"normal": _create_button_style(Color(0.12, 0.12, 0.12, 0.9), Color(0.5, 0.05, 0.05, 0.8)),
-		"hover": _create_button_style(Color(0.25, 0.05, 0.05, 0.95), Color(0.9, 0.1, 0.1, 1.0)),
-		"pressed": _create_button_style(Color(0.4, 0.05, 0.05, 1.0), Color(1.0, 0.2, 0.2, 1.0))
-	}
 
 
 func _make_gray_button_styles() -> Dictionary:

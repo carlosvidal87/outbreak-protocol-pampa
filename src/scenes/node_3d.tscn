@@ -1582,7 +1582,7 @@ script = ExtResource("103_gameplay")
 [node name="ProtonScatter" type="Node3D" parent="." unique_id=347205210]
 transform = Transform3D(1.1102062, -0.052439783, 0, 0.053210497, 1.0941256, 0, 0, 0, 0.99999994, 43.904877, -4.079378, 160.0223)
 script = ExtResource("1_32p6t")
-keep_static_colliders = true
+keep_static_colliders = false
 modifier_stack = SubResource("Resource_qp72r")
 Performance/use_chunks = true
 Performance/chunk_dimensions = Vector3(15, 15, 15)
@@ -1614,7 +1614,7 @@ shape = SubResource("Resource_mo5k8")
 [node name="ProtonScatter4" type="Node3D" parent="." unique_id=1374305899]
 transform = Transform3D(1.4531573, -0.051663388, 0, 0.06964762, 1.0779266, 0, 0, 0, 0.99999994, 168.62283, 3.597643, 160.0223)
 script = ExtResource("1_32p6t")
-keep_static_colliders = true
+keep_static_colliders = false
 modifier_stack = SubResource("Resource_0lqyk")
 Performance/use_chunks = true
 Performance/chunk_dimensions = Vector3(15, 15, 15)
@@ -1646,7 +1646,7 @@ shape = SubResource("Resource_8g4l3")
 [node name="ProtonScatter2" type="Node3D" parent="." unique_id=1730537633]
 transform = Transform3D(1.1102062, -0.052439783, 0, 0.053210497, 1.0941256, 0, 0, 0, 0.99999994, -98.419754, -4.079378, 160.0223)
 script = ExtResource("1_32p6t")
-keep_static_colliders = true
+keep_static_colliders = false
 modifier_stack = SubResource("Resource_7v4qk")
 Performance/use_chunks = true
 Performance/chunk_dimensions = Vector3(15, 15, 15)
@@ -1679,7 +1679,7 @@ shape = SubResource("Resource_wmo8w")
 [node name="ProtonScatter3" type="Node3D" parent="." unique_id=1241738086]
 transform = Transform3D(1.1102062, -0.052439783, 0, 0.053210497, 1.0941256, 0, 0, 0, 0.99999994, -178.35376, 7.6208763, 160.0223)
 script = ExtResource("1_32p6t")
-keep_static_colliders = true
+keep_static_colliders = false
 modifier_stack = SubResource("Resource_whftq")
 Performance/use_chunks = true
 Performance/chunk_dimensions = Vector3(15, 15, 15)
@@ -1916,6 +1916,8 @@ mesh = SubResource("ArrayMesh_j5fbm")
 
 [node name="CharacterBody3D" parent="." unique_id=521553342 instance=ExtResource("35_32p6t")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.824862, -1.0887828, -46.29145)
+
+[node name="TerrainNavigationRegion" type="NavigationRegion3D" parent="."]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1827364920]
 environment = SubResource("Environment_gameplay")

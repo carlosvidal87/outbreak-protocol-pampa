@@ -51,11 +51,14 @@ omni_range = 3.0
 
 [node name="Flashlight" type="SpotLight3D" parent="Camera3D" unique_id=414492546]
 visible = false
-light_color = Color(0.92, 0.96, 1, 1)
+light_color = Color(1, 0.94, 0.82, 1)
 light_energy = 0.0
-spot_range = 55.0
-spot_angle = 38.0
+light_specular = 0.35
+spot_range = 72.0
+spot_angle = 42.0
+spot_attenuation = 0.55
 shadow_enabled = true
+shadow_bias = 0.045
 
 [node name="ThirdPersonCameraPivot" type="Node3D" parent="." unique_id=1989246028]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)

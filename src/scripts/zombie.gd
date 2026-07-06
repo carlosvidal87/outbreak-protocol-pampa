@@ -46,6 +46,7 @@ func _ready() -> void:
 	set_physics_process(false)
 	await get_tree().physics_frame
 	player = _find_player()
+	nav_target_timer = randf() * NAV_TARGET_UPDATE_INTERVAL
 	set_physics_process(true)
 
 	if anim_player:
