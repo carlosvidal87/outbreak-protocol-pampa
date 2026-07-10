@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://c0gwirekyfjmj"]
+
+[ext_resource type="Shader" uid="uid://blninvlt7k0f7" path="res://assets/effects/efeitos.tres" id="1_enqc5"]
+[ext_resource type="ArrayMesh" uid="uid://dsxda0otcgmam" path="res://assets/effects/Cilindro.obj" id="2_tq8ah"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_iqsj6"]
+render_priority = 0
+shader = ExtResource("1_enqc5")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_bgrs4"]
+gravity = Vector3(0, 0, 0)
+
+[node name="Efeitos" type="Node3D" unique_id=635917264]
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="." unique_id=1992630135]
+material_override = SubResource("ShaderMaterial_iqsj6")
+cast_shadow = 0
+process_material = SubResource("ParticleProcessMaterial_bgrs4")
+draw_pass_1 = ExtResource("2_tq8ah")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1810350795]
+transform = Transform3D(-0.99199617, 0, 0.12626818, 0, 1, 0, -0.12626818, 0, -0.99199617, 0, 0, -7.365743)
+fov = 76.070984

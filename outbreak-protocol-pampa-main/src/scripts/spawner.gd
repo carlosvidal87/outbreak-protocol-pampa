@@ -1,0 +1,108 @@
+extends Node3D
+
+## Spawner - Mantem pressao continua de Corrompidos no mapa.
+## Controla spawn, contagem de kills e drops em fluxo continuo.
+
+const ZOMBIE_SCENE := preload("res://src/scenes/zombie.tscn")
+const SPAWN_RADIUS_MIN := 10.0
+const SPAWN_RADIUS_MAX := 20.0
+const MAX_CONCURRENT_ZOMBIES := 10
+const SPAWN_COOLDOWN := 2.0
+const INITIAL_SPAWN_DELAY := 1.0
+const ZOMBIE_DROPS_ENABLED := false
+
+var zombies_active := 0
+var spawn_timer := INITIAL_SPAWN_DELAY
+var kill_count := 0
+var kill_label: Label = null
+
+
+func _ready() -> void:
+	await NavigationServer3D.map_changed
+	_update_ui()
+
+
+func _process(delta: float) -> void:
+	_process_spawning(delta)
+
+
+func _process_spawning(delta: float) -> void:
+	if zombies_active >= MAX_CONCURRENT_ZOMBIES:
+		return
+
+	spawn_timer -= delta
+	if spawn_timer > 0.0:
+		return
+
+	_spawn_zombie()
+	spawn_timer = SPAWN_COOLDOWN
+
+
+func _spawn_zombie() -> void:
+	var player_group := get_tree().get_nodes_in_group("player")
+	if player_group.is_empty():
+		return
+	var player_pos: Vector3 = player_group[0].global_position
+
+	var angle := randf() * TAU
+	var radius := randf_range(SPAWN_RADIUS_MIN, SPAWN_RADIUS_MAX)
+	var raw_pos := player_pos + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+
+	var nav_map := get_world_3d().navigation_map
+	var safe_pos := NavigationServer3D.map_get_closest_point(nav_map, raw_pos)
+	safe_pos = _snap_position_to_ground(safe_pos)
+
+	var zombie := ZOMBIE_SCENE.instantiate()
+	get_tree().current_scene.add_child(zombie)
+	zombie.global_position = safe_pos
+	zombie.zombie_died.connect(_on_zombie_died)
+
+	zombies_active += 1
+
+
+func _on_zombie_died(death_pos: Vector3) -> void:
+	kill_count += 1
+	zombies_active = maxi(zombies_active - 1, 0)
+	_update_ui()
+
+	if ZOMBIE_DROPS_ENABLED and randf() < 0.12:
+		_spawn_powerup_at(death_pos)
+
+
+func _spawn_powerup_at(pos: Vector3) -> void:
+	var powerup_types = ["max_ammo", "insta_kill", "double_points", "nuke", "instant_money"]
+	var selected_type = powerup_types[randi() % powerup_types.size()]
+
+	var powerup_script = preload("res://src/scripts/powerup.gd")
+	var powerup = Node3D.new()
+	powerup.set_script(powerup_script)
+	powerup.type = selected_type
+	get_tree().current_scene.add_child(powerup)
+	powerup.global_position = _snap_position_to_ground(pos)
+	print("[SPAWNER] Dropped power-up: ", selected_type, " em ", powerup.global_position)
+
+
+func _snap_position_to_ground(pos: Vector3) -> Vector3:
+	var query := PhysicsRayQueryParameters3D.create(
+		pos + Vector3.UP * 80.0,
+		pos + Vector3.DOWN * 160.0
+	)
+	query.collision_mask = 1
+	query.collide_with_areas = false
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return pos
+	var hit_position: Vector3 = hit["position"]
+	return hit_position + Vector3.UP * 0.05
+
+
+func _update_ui() -> void:
+	if not kill_label:
+		var players = get_tree().get_nodes_in_group("player")
+		if players.size() > 0:
+			var hud = players[0].get_node_or_null("HUD")
+			if hud:
+				kill_label = hud.get_node_or_null("KillCounter")
+
+	if kill_label:
+		kill_label.text = "KILLS: %d" % kill_count

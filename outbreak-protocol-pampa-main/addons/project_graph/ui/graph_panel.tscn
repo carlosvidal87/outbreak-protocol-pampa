@@ -1,0 +1,70 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/project_graph/ui/graph_panel.gd" id="1_script"]
+
+[node name="GraphPanel" type="VBoxContainer"]
+script = ExtResource("1_script")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -4.0
+
+[node name="Toolbar" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 36)
+
+[node name="ReindexButton" type="Button" parent="Toolbar"]
+custom_minimum_size = Vector2(120, 0)
+text = "⟳ Reindex All"
+tooltip_text = "Reindexa todos os arquivos do projeto"
+
+[node name="StatusLabel" type="Label" parent="Toolbar"]
+size_flags_horizontal = 3
+text = "ProjectGraph — Aguardando indexação..."
+vertical_alignment = 1
+
+[node name="StatsLabel" type="Label" parent="Toolbar"]
+custom_minimum_size = Vector2(200, 0)
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="."]
+
+[node name="QueryBar" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 32)
+
+[node name="QueryTypeOption" type="OptionButton" parent="QueryBar"]
+custom_minimum_size = Vector2(180, 0)
+tooltip_text = "Tipo de consulta"
+
+[node name="QueryInput" type="LineEdit" parent="QueryBar"]
+size_flags_horizontal = 3
+placeholder_text = "Digite o arquivo, função, sinal, ou termo de busca..."
+clear_button_enabled = true
+
+[node name="QueryButton" type="Button" parent="QueryBar"]
+custom_minimum_size = Vector2(90, 0)
+text = "▶ Buscar"
+tooltip_text = "Executar consulta"
+
+[node name="HSeparator2" type="HSeparator" parent="."]
+
+[node name="ContentSplit" type="HSplitContainer" parent="."]
+size_flags_vertical = 3
+split_offset = 450
+
+[node name="ResultTree" type="Tree" parent="ContentSplit"]
+custom_minimum_size = Vector2(300, 0)
+size_flags_horizontal = 3
+hide_root = true
+allow_reselect = true
+
+[node name="DetailPanel" type="RichTextLabel" parent="ContentSplit"]
+custom_minimum_size = Vector2(250, 0)
+size_flags_horizontal = 3
+bbcode_enabled = true
+text = "[color=#888888]Selecione um item para ver detalhes...[/color]"
+selection_enabled = true
+fit_content = true

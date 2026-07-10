@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://buyagp6kis6rh"
+path="res://.godot/imported/wooden_wall.obj-8908da7f342a7a0cb95ce80a884da681.mesh"
+
+[deps]
+
+files=["res://.godot/imported/wooden_wall.obj-8908da7f342a7a0cb95ce80a884da681.mesh"]
+
+source_file="res://assets/[AR] Post-Apocalyptic - Starter Pack/3. Models/obj/wooden_wall.obj"
+dest_files=["res://.godot/imported/wooden_wall.obj-8908da7f342a7a0cb95ce80a884da681.mesh", "res://.godot/imported/wooden_wall.obj-8908da7f342a7a0cb95ce80a884da681.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
