@@ -150,7 +150,11 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.physical_keycode == KEY_F8:
+		var is_day_night_toggle := (
+			key_event.physical_keycode == KEY_F8
+			or key_event.physical_keycode == KEY_L
+		)
+		if key_event.pressed and not key_event.echo and is_day_night_toggle:
 			is_night = not is_night
 			_apply_night_state(is_night)
 			get_viewport().set_input_as_handled()
@@ -402,10 +406,10 @@ func _create_storm_wall_layer() -> void:
 		wall.mesh = QuadMesh.new()
 		wall.material_override = storm_wall_material
 		wall.position = Vector3(cos(angle) * STORM_WALL_RADIUS, STORM_WALL_HEIGHT + float(data["height"]), sin(angle) * STORM_WALL_RADIUS)
-		wall.look_at(Vector3.ZERO, Vector3.UP)
 		wall.scale = data["scale"]
 		wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		storm_wall_root.add_child(wall)
+		wall.look_at(Vector3.ZERO, Vector3.UP)
 
 
 func _apply_storm_wall_lighting(enabled: bool) -> void:
@@ -453,7 +457,6 @@ func _create_moon_visual() -> void:
 	halo_mesh.size = Vector2(58.0, 58.0)
 	moon_halo_visual.mesh = halo_mesh
 	moon_halo_visual.position = MOON_POSITION + Vector3(0.0, 0.0, 1.0)
-	moon_halo_visual.look_at(Vector3.ZERO, Vector3.UP)
 	moon_halo_visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 	var halo_shader := Shader.new()
@@ -465,6 +468,7 @@ func _create_moon_visual() -> void:
 	moon_halo_visual.material_override = halo_material
 	moon_halo_visual.visible = false
 	add_child(moon_halo_visual)
+	moon_halo_visual.look_at(Vector3.ZERO, Vector3.UP)
 
 
 func _apply_moon_visibility(enabled: bool) -> void:

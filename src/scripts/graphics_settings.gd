@@ -5,6 +5,9 @@ signal settings_changed(settings: Dictionary)
 const CONFIG_PATH := "user://graphics_settings.cfg"
 const CONFIG_VERSION := 1
 const DEFAULT_PRESET_ID := "low"
+const DEFAULT_HOUSE_TEXTURE_RESOLUTION := "512x512"
+const HOUSE_TEXTURE_RESOLUTIONS := ["256x256", "512x512", "1024x1024"]
+const RETRO_HOUSE_TEXTURE_ROOT := "res://assets/retro_house_pack/textures/"
 
 const SCHEMA_PATHS := [
 	"display.window_mode",
@@ -20,7 +23,8 @@ const SCHEMA_PATHS := [
 	"quality.glow",
 	"quality.ssao",
 	"quality.terrain_detail_distance",
-	"quality.flashlight_shadows"
+	"quality.flashlight_shadows",
+	"quality.house_texture_resolution"
 ]
 
 const PRESET_MANAGED_PATHS := [
@@ -34,7 +38,8 @@ const PRESET_MANAGED_PATHS := [
 	"quality.glow",
 	"quality.ssao",
 	"quality.terrain_detail_distance",
-	"quality.flashlight_shadows"
+	"quality.flashlight_shadows",
+	"quality.house_texture_resolution"
 ]
 
 const PRESET_LABELS := {
@@ -64,7 +69,8 @@ const PRESET_TEMPLATES := {
 			"glow": false,
 			"ssao": false,
 			"terrain_detail_distance": 180.0,
-			"flashlight_shadows": false
+			"flashlight_shadows": false,
+			"house_texture_resolution": "256x256"
 		}
 	},
 	"medium": {
@@ -86,7 +92,8 @@ const PRESET_TEMPLATES := {
 			"glow": true,
 			"ssao": false,
 			"terrain_detail_distance": 320.0,
-			"flashlight_shadows": false
+			"flashlight_shadows": false,
+			"house_texture_resolution": "512x512"
 		}
 	},
 	"high": {
@@ -108,7 +115,8 @@ const PRESET_TEMPLATES := {
 			"glow": true,
 			"ssao": true,
 			"terrain_detail_distance": 500.0,
-			"flashlight_shadows": true
+			"flashlight_shadows": false,
+			"house_texture_resolution": "1024x1024"
 		}
 	}
 }
@@ -133,6 +141,7 @@ func load_settings() -> void:
 				var parts: PackedStringArray = path.split(".")
 				if config.has_section_key(parts[0], parts[1]):
 					set_setting(path, config.get_value(parts[0], parts[1]))
+			_backfill_house_texture_resolution(config)
 		else:
 			var legacy_preset := str(config.get_value("graphics", "preset", DEFAULT_PRESET_ID))
 			if PRESET_TEMPLATES.has(legacy_preset):
@@ -220,6 +229,8 @@ func apply_to_scene(root: Node) -> void:
 
 	for flashlight in root.find_children("Flashlight", "SpotLight3D", true, false):
 		_apply_flashlight_shadow_state(flashlight as SpotLight3D)
+
+	_apply_retro_house_texture_resolution(root)
 
 	_emit_settings_changed()
 
@@ -353,6 +364,77 @@ func _apply_terrain_detail_distance(node: Node) -> void:
 		node.call("set_view_distance", detail_distance)
 
 
+func _apply_retro_house_texture_resolution(root: Node) -> void:
+	var target_resolution := str(get_setting("quality.house_texture_resolution", DEFAULT_HOUSE_TEXTURE_RESOLUTION))
+	for mesh_node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := mesh_node as MeshInstance3D
+		if not mesh_instance:
+			continue
+
+		if mesh_instance.material_override:
+			mesh_instance.material_override = _get_retro_house_material_for_resolution(
+				mesh_instance.material_override,
+				target_resolution
+			)
+
+		var mesh := mesh_instance.mesh
+		if not mesh:
+			continue
+
+		for surface_index in range(mesh.get_surface_count()):
+			var material := mesh_instance.get_surface_override_material(surface_index)
+			if not material:
+				material = mesh.surface_get_material(surface_index)
+			if not material:
+				continue
+
+			var adjusted_material := _get_retro_house_material_for_resolution(material, target_resolution)
+			if adjusted_material != material:
+				mesh_instance.set_surface_override_material(surface_index, adjusted_material)
+
+
+func _get_retro_house_material_for_resolution(material: Material, target_resolution: String) -> Material:
+	var standard_material := material as StandardMaterial3D
+	if not standard_material or not standard_material.albedo_texture:
+		return material
+
+	var texture_path := standard_material.albedo_texture.resource_path
+	var target_path := _get_retro_house_texture_path(texture_path, target_resolution)
+	if target_path.is_empty() or target_path == texture_path or not ResourceLoader.exists(target_path):
+		return material
+
+	var target_texture := ResourceLoader.load(target_path) as Texture2D
+	if not target_texture:
+		return material
+
+	var adjusted_material := standard_material.duplicate(true) as StandardMaterial3D
+	adjusted_material.albedo_texture = target_texture
+	return adjusted_material
+
+
+func _get_retro_house_texture_path(texture_path: String, target_resolution: String) -> String:
+	if not texture_path.begins_with(RETRO_HOUSE_TEXTURE_ROOT):
+		return ""
+
+	for resolution in HOUSE_TEXTURE_RESOLUTIONS:
+		var segment := "%s%s/" % [RETRO_HOUSE_TEXTURE_ROOT, resolution]
+		if texture_path.begins_with(segment):
+			return texture_path.replace(segment, "%s%s/" % [RETRO_HOUSE_TEXTURE_ROOT, target_resolution])
+	return ""
+
+
+func _backfill_house_texture_resolution(config: ConfigFile) -> void:
+	if config.has_section_key("quality", "house_texture_resolution"):
+		return
+
+	var preset_id := str(config.get_value("graphics", "preset_id", config.get_value("graphics", "preset", DEFAULT_PRESET_ID)))
+	if PRESET_TEMPLATES.has(preset_id):
+		set_setting(
+			"quality.house_texture_resolution",
+			_get_nested_value(PRESET_TEMPLATES[preset_id], "quality.house_texture_resolution", DEFAULT_HOUSE_TEXTURE_RESOLUTION)
+		)
+
+
 func _coerce_setting_value(path: String, value: Variant) -> Variant:
 	match path:
 		"display.window_mode":
@@ -367,6 +449,11 @@ func _coerce_setting_value(path: String, value: Variant) -> Variant:
 			return bool(value)
 		"render.aa_mode", "quality.shadow_quality":
 			return str(value)
+		"quality.house_texture_resolution":
+			var texture_resolution := str(value)
+			if HOUSE_TEXTURE_RESOLUTIONS.has(texture_resolution):
+				return texture_resolution
+			return DEFAULT_HOUSE_TEXTURE_RESOLUTION
 	return value
 
 
