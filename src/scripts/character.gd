@@ -1,529 +1,358 @@
 extends CharacterBody3D
 
-# script principal do jogador
+signal health_changed(current_hp: float, maximum_hp: float)
+
+enum PlayerState { ALIVE, DOWNED, SPECTATING }
+enum SoldierAnimState {
+	IDLE,
+	WALK_FORWARD,
+	WALK_BACKWARD,
+	WALK_LEFT,
+	WALK_RIGHT,
+	WALK_FORWARD_LEFT,
+	WALK_FORWARD_RIGHT,
+	WALK_BACKWARD_LEFT,
+	WALK_BACKWARD_RIGHT,
+	RUN_FORWARD,
+	RUN_BACKWARD,
+	RUN_LEFT,
+	RUN_RIGHT,
+	RUN_FORWARD_LEFT,
+	RUN_FORWARD_RIGHT,
+	RUN_BACKWARD_LEFT,
+	RUN_BACKWARD_RIGHT,
+	JUMP,
+}
 
 const SoldierVisualHelper = preload("res://src/scripts/soldier_visual_helper.gd")
 
-const WALK_SPEED = 5.0
-const SPRINT_SPEED = 8.0
+const WALK_SPEED := 5.0
+const SPRINT_SPEED := 8.0
 const JUMP_HEIGHT := 1.05
 const JUMP_TIME_TO_APEX := 0.38
 const STEP_HEIGHT := 0.45
 const STEP_FORWARD_DISTANCE := 0.55
 const STEP_DOWN_DISTANCE := 0.8
 const PLAYER_CAMERA_FAR := 600.0
-const BOB_FREQ = 2.0
-const BOB_AMP = 0.05
-const RECOIL_RETURN = 15.0
-const MAX_HP = 100.0
-const SOLDIER_ANIM_LIBRARY = "pistol"
-const SOLDIER_PISTOL_ANIMS = {
+const SOLDIER_ANIM_LIBRARY := "pistol"
+const SOLDIER_PISTOL_ANIMS := {
 	"idle": "res://assets/characters/Soldier/Pistol Animation/pistol idle.fbx",
-	"walk": "res://assets/characters/Soldier/Pistol Animation/pistol walk.fbx",
-	"run": "res://assets/characters/Soldier/Pistol Animation/pistol run.fbx",
-	"strafe": "res://assets/characters/Soldier/Pistol Animation/pistol strafe.fbx",
+	"walk_forward": "res://assets/characters/Soldier/Pistol Animation/pistol walk.fbx",
+	"walk_backward": "res://assets/characters/Soldier/Pistol Animation/pistol walk backward.fbx",
+	"walk_left": "res://assets/characters/Soldier/Pistol Animation/pistol strafe.fbx",
+	"walk_right": "res://assets/characters/Soldier/Pistol Animation/pistol strafe (2).fbx",
+	"walk_forward_left": "res://assets/characters/Soldier/Pistol Animation/pistol walk arc.fbx",
+	"walk_forward_right": "res://assets/characters/Soldier/Pistol Animation/pistol walk arc (2).fbx",
+	"walk_backward_left": "res://assets/characters/Soldier/Pistol Animation/pistol walk backward arc.fbx",
+	"walk_backward_right": "res://assets/characters/Soldier/Pistol Animation/pistol walk backward arc (2).fbx",
+	"run_forward": "res://assets/characters/Soldier/Pistol Animation/pistol run.fbx",
+	"run_backward": "res://assets/characters/Soldier/Pistol Animation/pistol run backward.fbx",
+	"run_left": "res://assets/characters/Soldier/Pistol Animation/pistol strafe.fbx",
+	"run_right": "res://assets/characters/Soldier/Pistol Animation/pistol strafe (2).fbx",
+	"run_forward_left": "res://assets/characters/Soldier/Pistol Animation/pistol run arc.fbx",
+	"run_forward_right": "res://assets/characters/Soldier/Pistol Animation/pistol run arc (2).fbx",
+	"run_backward_left": "res://assets/characters/Soldier/Pistol Animation/pistol run backward arc.fbx",
+	"run_backward_right": "res://assets/characters/Soldier/Pistol Animation/pistol run backward arc (2).fbx",
 	"jump": "res://assets/characters/Soldier/Pistol Animation/pistol jump.fbx"
 }
-const SOLDIER_RIGHT_HAND_BONE = "mixamorig:RightHand"
-const THIRD_PERSON_PISTOL_PATH = "res://assets/weapons/blaster-a.glb"
-const THIRD_PERSON_PISTOL_OFFSET = Vector3(0.08, 0.02, -0.03)
-const THIRD_PERSON_PISTOL_ROTATION = Vector3(0.0, PI / 2.0, PI / 2.0)
-const THIRD_PERSON_PISTOL_SCALE = Vector3(1.0, 1.0, 1.0)
+const SOLDIER_ANIM_NAMES := [
+	"idle",
+	"walk_forward", "walk_backward", "walk_left", "walk_right",
+	"walk_forward_left", "walk_forward_right", "walk_backward_left", "walk_backward_right",
+	"run_forward", "run_backward", "run_left", "run_right",
+	"run_forward_left", "run_forward_right", "run_backward_left", "run_backward_right",
+	"jump",
+]
+const WEAPON_SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
+const MAX_AMMO_VALUES := {"9mm": 240, "rifle": 600, "shell": 64, "none": 0}
+const NETWORK_WEAPON_DAMAGE := [25.0, 20.0, 35.0, 30.0, 20.0, 70.0]
+const NETWORK_WEAPON_RANGE := [50.0, 50.0, 100.0, 80.0, 10.0, 3.0]
+const NETWORK_MELEE_DAMAGE := 100.0
+const NETWORK_MELEE_RANGE := 3.0
+const NETWORK_FIRE_INTERVAL := [0.16, 0.075, 0.10, 0.10, 0.0, 0.45]
+const NETWORK_INTERPOLATION_SPEED := 12.0
+const NETWORK_SNAP_DISTANCE := 8.0
+const REVIVE_RANGE := 2.5
+const REVIVE_DURATION := 4.0
 
-# configs das armas
+@export var is_local_player := true
 
-const WEAPONS = {
-	"blaster-a": {
-		"name": "Pistola Base",
-		"damage": 24.0,
-		"headshot_mult": 3.0,
-		"fire_rate": 0.35,
-		"mag_size": 15,
-		"max_ammo": 90,
-		"recoil_amount": 0.08,
-		"cost": 0,
-		"model_path": "res://assets/weapons/blaster-a.glb",
-		"sound_shoot": preload("res://assets/sounds/pistol-shot.mp3"),
-		"sound_shoot_offset": 0.15,
-		"sound_shoot_db": -10.0,
-		"sound_reload": preload("res://assets/sounds/pistol-reload.mp3"),
-		"sound_reload_db": -8.0
-	},
-	"blaster-d": {
-		"name": "Assault Rifle",
-		"damage": 120.0,
-		"headshot_mult": 4.0,
-		"fire_rate": 0.1,
-		"mag_size": 30,
-		"max_ammo": 240,
-		"recoil_amount": 0.05,
-		"cost": 1000,
-		"model_path": "res://assets/weapons/blaster-d.glb",
-		"sound_shoot": preload("res://assets/sounds/assalt-shot.mp3"),
-		"sound_shoot_offset": 0.08,
-		"sound_shoot_db": 4.0,
-		"sound_reload": preload("res://assets/sounds/assalt-reload.mp3"),
-		"sound_reload_db": -4.0
-	},
-	"blaster-h": {
-		"name": "Shotgun",
-		"damage": 900.0,
-		"headshot_mult": 2.0,
-		"fire_rate": 0.8,
-		"mag_size": 8,
-		"max_ammo": 48,
-		"recoil_amount": 0.2,
-		"cost": 1500,
-		"model_path": "res://assets/weapons/blaster-h.glb",
-		"sound_shoot": preload("res://assets/sounds/shotgun-shot.mp3"),
-		"sound_shoot_db": -6.0,
-		"sound_reload": preload("res://assets/sounds/shotgun-reload.mp3"),
-		"sound_reload_db": -2.0
-	}
-}
-
+var network_peer_id := 1
+var player_display_name := "Jogador"
+var local_input_blocked := false
+var network_position := Vector3.ZERO
+var network_rotation := Vector3.ZERO
+var network_camera_rotation := Vector3.ZERO
+var network_animation_state := SoldierAnimState.IDLE
+var network_animation_speed := 1.0
+var network_animation_phase := 0.0
+var network_animation_airborne := false
+var player_state := PlayerState.ALIVE
+var downed_remaining := 0.0
+var revive_target_peer_id := 0
+var revive_progress := 0.0
+var last_server_shot_ms := -10000
+var equipped_weapon_index := 0
+var validated_shot_weapon := -1
+var validated_shot_hits_remaining := 0
+var validated_shot_expires_ms := 0
+var validated_attack_is_melee := false
+var server_magazines := [19, 30, 30, 100, 2, 0]
+var server_ammo := {"9mm": 240, "rifle": 600, "shell": 64}
 var points := 500
-var current_weapon_id := "blaster-a"
-var unlocked_weapon_ids: Array[String] = ["blaster-a"]
-
-# balas e armas liberadas
-var inventory := {
-	"blaster-a": {"mag": 15, "reserve": 90, "unlocked": true}
-}
-
-var is_reloading := false
-var reload_timer := 0.0
-const RELOAD_TIME := 1.5
-
-# atributos
 var max_hp := 100.0
-var regen_delay := 4.0
-var regen_rate := 25.0
-var time_since_last_hit := 0.0
-
+var hp := 100.0
+var mouse_sensitivity := 0.002
+var flashlight_enabled := false
 var active_perks: Array[String] = []
 var nearby_interactable: Node3D = null
-
 var insta_kill_timer := 0.0
 var double_points_timer := 0.0
-var notify_timer := 0.0
-
-# refs hud
-@onready var damage_vignette: ColorRect = $HUD/DamageVignette
-@onready var interaction_label: Label = $HUD/InteractionLabel
-@onready var perks_hud_label: Label = $HUD/PerksHudLabel
-@onready var powerup_hud_label: Label = $HUD/PowerupHudLabel
-@onready var notify_label: Label = $HUD/NotifyLabel
-@onready var hp_bar: ProgressBar = $HUD/HPBar
-# variaveis de estado
-
-var mouse_sensitivity := 0.002
-var t_bob := 0.0
-var fire_timer := 0.0
-var current_recoil := 0.0
-var muzzle_flash_timer := 0.0
-var hp := 100.0 # Inicializado como max_hp padrão
-var hitmarker_timer := 0.0
-var is_meleeing := false
-var melee_timer := 0.0
-const MELEE_DURATION := 0.5
-
-var weapon_kick := Vector3.ZERO
-var weapon_rot_kick := 0.0
-@export var is_local_player := true
-var is_third_person := false
-var flashlight_enabled := false
-
-@onready var camera: Camera3D = $Camera3D
-@onready var third_person_camera_pivot: Node3D = $ThirdPersonCameraPivot
-@onready var third_person_camera: Camera3D = $ThirdPersonCameraPivot/ThirdPersonCamera3D
-@onready var soldier_model: Node3D = $Ch35_nonPBR
-@onready var muzzle_flash: OmniLight3D = $"Camera3D/MuzzleFlash"
-@onready var flashlight: SpotLight3D = $"Camera3D/Flashlight"
-@onready var flashlight_fill: OmniLight3D = $"Camera3D/FlashlightFill"
-@onready var raycast: RayCast3D = $"Camera3D/RayCast3D"
-@onready var hitmarker: Label = $HUD/Hitmarker
-@onready var hud: CanvasLayer = $HUD
-
-# refs da arma na mao
-var weapon_model: Node3D = null
-var weapon_cache: Dictionary = {}
-var blaster_default_pos := Vector3(0.4, -0.3, -0.8)
-var blaster_default_rot := Vector3(0, 0, 0)
-
-@onready var points_label: Label = $HUD/PointsLabel
-@onready var ammo_label: Label = $HUD/AmmoLabel
-@onready var shop_label: Label = $HUD/ShopLabel
-
-var sfx_shoot_pool: Array[AudioStreamPlayer] = []
-var next_shoot_player_idx := 0
-var sfx_reload: AudioStreamPlayer
-var hp_bar_fill_style: StyleBox = null
 var soldier_anim_player: AnimationPlayer = null
 var soldier_current_anim := ""
 var soldier_default_transform := Transform3D.IDENTITY
-var third_person_pistol: Node3D = null
-var third_person_pistol_attachment: BoneAttachment3D = null
+var remote_last_position := Vector3.ZERO
+var downed_overlay: ColorRect = null
+var downed_status_label: Label = null
+var revive_prompt_panel: PanelContainer = null
+var revive_prompt_label: Label = null
+var revive_progress_bar: ProgressBar = null
+
+@onready var camera: Camera3D = $Camera3D
+@onready var soldier_model: Node3D = $Ch35_nonPBR
+@onready var flashlight: SpotLight3D = $Camera3D/Flashlight
+@onready var flashlight_fill: OmniLight3D = $Camera3D/FlashlightFill
+@onready var fps_hands: Node3D = $Camera3D/FPSHands
+@onready var menu_layer: CanvasLayer = $MenuLayer
+@onready var crosshair: Control = $CrosshairLayer/Crosshair
+@onready var hitmarker: Control = $CrosshairLayer/Hitmarker
+@onready var ammo_counter: Control = $CrosshairLayer/AmmoCounter
+@onready var health_hud: Control = $CrosshairLayer/HealthHUD
+
 
 func _ready() -> void:
-	for i in range(4):
-		var p = AudioStreamPlayer.new()
-		add_child(p)
-		sfx_shoot_pool.append(p)
-	
-	sfx_reload = AudioStreamPlayer.new()
-	add_child(sfx_reload)
-	
 	if multiplayer.multiplayer_peer != null:
 		is_local_player = is_multiplayer_authority()
 
-	if is_local_player:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	floor_max_angle = deg_to_rad(55.0)
 	floor_snap_length = 0.45
 	camera.far = PLAYER_CAMERA_FAR
-	third_person_camera.far = PLAYER_CAMERA_FAR
-	camera.current = true
-	third_person_camera.current = false
-	muzzle_flash.visible = false
-	set_flashlight_enabled(false)
+	camera.current = is_local_player
 	add_to_group("player")
-	raycast.add_exception(self )
 	soldier_default_transform = soldier_model.transform
-	_setup_soldier_pistol_animations()
-	_setup_third_person_pistol()
+	remote_last_position = global_position
+	network_position = position
+	network_rotation = rotation
+	network_camera_rotation = camera.rotation
+	_setup_soldier_animations()
+	_configure_fps_hands()
+	set_flashlight_enabled(false)
+	_apply_local_player_visibility()
+	_set_health(hp)
+	_create_downed_hud()
+	_create_scoreboard()
 
-	# Salva transform original da primeira arma se existir
-	weapon_model = camera.get_node_or_null("blaster-a")
-	if weapon_model:
-		blaster_default_pos = weapon_model.position
-		blaster_default_rot = weapon_model.rotation
-	_cache_weapon_models()
-	equip_weapon(current_weapon_id)
-		
-	# Reseta o inventário da arma base pra garantir
-	inventory["blaster-a"]["mag"] = WEAPONS["blaster-a"]["mag_size"]
-	inventory["blaster-a"]["reserve"] = WEAPONS["blaster-a"]["max_ammo"]
-
-	if hp_bar:
-		hp_bar_fill_style = hp_bar.get_theme_stylebox("fill").duplicate()
-		hp_bar.add_theme_stylebox_override("fill", hp_bar_fill_style)
-
-	_update_hud()
-	_apply_player_view_mode()
-
-	# Instancia o Menu de Início/Pausa
 	if is_local_player:
-		var menu_controller_script = preload("res://src/scripts/menu_controller.gd")
-		var menu_controller = menu_controller_script.new()
-		$HUD.add_child(menu_controller)
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		var menu_controller_script := preload("res://src/scripts/menu_controller.gd")
+		var menu_controller := menu_controller_script.new()
+		menu_layer.add_child(menu_controller)
 
 
-func _process(_delta: float) -> void:
-	_lock_soldier_visual_transform()
-
-
-func _update_hud() -> void:
-	points_label.text = "$$$ %d" % points
-	
-	if hp_bar:
-		hp_bar.max_value = max_hp
-		hp_bar.value = hp
-		if hp_bar_fill_style is StyleBoxFlat:
-			var style_fg := hp_bar_fill_style as StyleBoxFlat
-			if hp < max_hp * 0.4:
-				style_fg.bg_color = Color(0.8, 0.1, 0.1, 1.0)
-			else:
-				style_fg.bg_color = Color(0.2, 0.8, 0.2, 1.0)
-	
-	if is_reloading:
-		ammo_label.text = "RELOADING..."
-		ammo_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.0, 1.0))
-	else:
-		var inv = inventory[current_weapon_id]
-		ammo_label.text = "%d / %d" % [inv["mag"], inv["reserve"]]
-		if inv["mag"] == 0:
-			ammo_label.add_theme_color_override("font_color", Color(1.0, 0.0, 0.0, 1.0))
-		else:
-			ammo_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
-
-	# Atualiza a lista de perks ativos
-	if perks_hud_label:
-		if active_perks.is_empty():
-			perks_hud_label.text = "Vantagens: nenhuma"
-		else:
-			var names = []
-			for p in active_perks:
-				names.append(p.capitalize())
-			perks_hud_label.text = "Vantagens: " + " | ".join(names)
+func _configure_fps_hands() -> void:
+	fps_hands.camera = camera
+	fps_hands.node_recoil_x = camera
+	fps_hands.node_recoil_y = self
+	fps_hands.collision_mask = 5
+	fps_hands.FireRayCast.collision_mask = 5
+	fps_hands.MeleeRayCast.collision_mask = 5
+	fps_hands.FireRayCast.add_exception(self)
+	fps_hands.MeleeRayCast.add_exception(self)
+	crosshair.set_weapon(fps_hands.weapon)
+	if not fps_hands.give_damage.is_connected(_on_fps_hands_give_damage):
+		fps_hands.give_damage.connect(_on_fps_hands_give_damage)
+	if not fps_hands.aiming.is_connected(crosshair.set_aiming):
+		fps_hands.aiming.connect(crosshair.set_aiming)
+	if not fps_hands.firing.is_connected(crosshair.kick):
+		fps_hands.firing.connect(crosshair.kick)
+	if not fps_hands.firing.is_connected(_on_local_weapon_fired):
+		fps_hands.firing.connect(_on_local_weapon_fired)
+	if not fps_hands.meleeing.is_connected(_on_local_melee):
+		fps_hands.meleeing.connect(_on_local_melee)
+	if not fps_hands.reloading.is_connected(_on_local_weapon_reload):
+		fps_hands.reloading.connect(_on_local_weapon_reload)
+	if not fps_hands.taking_weapon.is_connected(_on_fps_hands_weapon_taken):
+		fps_hands.taking_weapon.connect(_on_fps_hands_weapon_taken)
+	if not fps_hands.update_ammo.is_connected(ammo_counter.update_ammo):
+		fps_hands.update_ammo.connect(ammo_counter.update_ammo)
+	fps_hands.visible = is_local_player
+	hitmarker.visible = is_local_player
+	ammo_counter.visible = is_local_player
+	fps_hands.set_process_input(is_local_player)
+	fps_hands.set_process(is_local_player)
+	fps_hands.set_physics_process(is_local_player)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not is_local_player:
+	if not is_local_player or local_input_blocked:
 		return
-
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * mouse_sensitivity)
-		if is_third_person:
-			third_person_camera_pivot.rotate_x(-event.relative.y * mouse_sensitivity)
-		else:
-			camera.rotate_x(-event.relative.y * mouse_sensitivity)
-		_clamp_pitch()
-	elif event.is_action_pressed("ui_cancel"):
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		camera.rotate_x(-event.relative.y * mouse_sensitivity)
+		camera.rotation.x = clampf(camera.rotation.x, -PI / 2.0, PI / 2.0)
 	elif event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-	elif event is InputEventMouseButton and event.pressed and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_cycle_weapon(1)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_cycle_weapon(-1)
-	
-	# Menu de Compra Improvisado e Interação
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_F3:
-			_toggle_third_person()
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_TAB:
+			_set_scoreboard_visible(true)
 		elif event.physical_keycode == KEY_F:
 			set_flashlight_enabled(not flashlight_enabled)
-		elif event.physical_keycode == KEY_1:
-			_try_buy_weapon("blaster-d")
-		elif event.physical_keycode == KEY_2:
-			_try_buy_weapon("blaster-h")
-		elif event.physical_keycode == KEY_V:
-			_start_melee()
-		elif event.physical_keycode == KEY_E:
-			if nearby_interactable:
-				_interact_with(nearby_interactable)
-
-
-func _toggle_third_person() -> void:
-	if not is_local_player:
-		return
-
-	is_third_person = not is_third_person
-	_apply_player_view_mode()
-
-
-func _setup_soldier_pistol_animations() -> void:
-	soldier_anim_player = SoldierVisualHelper.setup_pistol_animation_library(
-		soldier_model,
-		SOLDIER_PISTOL_ANIMS,
-		SOLDIER_ANIM_LIBRARY
-	)
-	if not soldier_anim_player:
-		return
-
-	_play_soldier_animation("idle")
-
-
-func _setup_third_person_pistol() -> void:
-	var result := SoldierVisualHelper.attach_pistol_to_hand(
-		soldier_model,
-		SOLDIER_RIGHT_HAND_BONE,
-		THIRD_PERSON_PISTOL_PATH,
-		THIRD_PERSON_PISTOL_OFFSET,
-		THIRD_PERSON_PISTOL_ROTATION,
-		THIRD_PERSON_PISTOL_SCALE
-	)
-	if not result.get("ok", false):
-		return
-
-	third_person_pistol_attachment = result["attachment"] as BoneAttachment3D
-	third_person_pistol = result["pistol"] as Node3D
-	_apply_player_view_mode()
-
-
-func _update_soldier_animation(input_dir: Vector2, is_sprinting: bool) -> void:
-	if not soldier_anim_player:
-		return
-
-	if not is_on_floor():
-		_play_soldier_animation("jump")
-	elif input_dir == Vector2.ZERO:
-		_play_soldier_animation("idle")
-	elif absf(input_dir.x) > absf(input_dir.y):
-		_play_soldier_animation("strafe")
-	elif is_sprinting:
-		_play_soldier_animation("run")
-	else:
-		_play_soldier_animation("walk")
-
-
-func _play_soldier_animation(state: String) -> void:
-	if soldier_current_anim == state:
-		return
-
-	var anim_name := "%s/%s" % [SOLDIER_ANIM_LIBRARY, state]
-	if not soldier_anim_player.has_animation(anim_name):
-		return
-
-	soldier_current_anim = state
-	soldier_anim_player.play(anim_name, 0.15)
-
-
-func _lock_soldier_visual_transform() -> void:
-	if soldier_model:
-		soldier_model.transform = soldier_default_transform
-
-
-func _apply_player_view_mode() -> void:
-	if is_local_player:
-		camera.current = not is_third_person
-		third_person_camera.current = is_third_person
-		hud.visible = true
-	else:
-		camera.current = false
-		third_person_camera.current = false
-		hud.visible = false
-
-	if soldier_model:
-		soldier_model.visible = not is_local_player or is_third_person
-
-	if weapon_model and is_instance_valid(weapon_model):
-		weapon_model.visible = is_local_player and not is_third_person
-	if third_person_pistol and is_instance_valid(third_person_pistol):
-		third_person_pistol.visible = not is_local_player or is_third_person
-
-
-func _cache_weapon_models() -> void:
-	for weapon_id in WEAPONS.keys():
-		var weapon_instance := camera.get_node_or_null(weapon_id) as Node3D
-		if not weapon_instance:
-			var packed_scene = load(WEAPONS[weapon_id]["model_path"]) as PackedScene
-			if packed_scene:
-				weapon_instance = packed_scene.instantiate() as Node3D
-				if weapon_instance:
-					weapon_instance.name = weapon_id
-					camera.add_child(weapon_instance)
-
-		if not weapon_instance:
-			continue
-
-		weapon_instance.position = blaster_default_pos
-		weapon_instance.rotation = blaster_default_rot
-		weapon_instance.visible = false
-		weapon_cache[weapon_id] = weapon_instance
-
-
-func _cycle_weapon(direction: int) -> void:
-	if is_reloading or is_meleeing or unlocked_weapon_ids.size() <= 1:
-		return
-	var idx = unlocked_weapon_ids.find(current_weapon_id)
-	if idx != -1:
-		var next_idx = (idx + direction) % unlocked_weapon_ids.size()
-		if next_idx < 0:
-			next_idx += unlocked_weapon_ids.size()
-		equip_weapon(unlocked_weapon_ids[next_idx])
-
-
-func _try_buy_weapon(w_id: String) -> void:
-	if is_reloading:
-		return
-		
-	var w_data = WEAPONS[w_id]
-	if inventory.has(w_id) and inventory[w_id]["unlocked"]:
-		# Se já tem, e quiser comprar munição, gasta 500 (metade) se tiver
-		if inventory[w_id]["reserve"] < w_data["max_ammo"]:
-			var ammo_cost = int(w_data["cost"] / 2.0)
-			if ammo_cost == 0: ammo_cost = 250
-			if points >= ammo_cost:
-				points -= ammo_cost
-				inventory[w_id]["reserve"] = w_data["max_ammo"]
-				print("[SHOP] Munição comprada para ", w_data["name"])
-				equip_weapon(w_id)
+		elif event.physical_keycode == KEY_E and nearby_interactable:
+			_interact_with(nearby_interactable)
 		else:
-			# Só equipa
-			equip_weapon(w_id)
+			var slot := WEAPON_SLOT_KEYS.find(event.physical_keycode)
+			if slot != -1:
+				fps_hands.take_weapon(slot)
+	elif event is InputEventKey and not event.pressed and event.physical_keycode == KEY_TAB:
+		_set_scoreboard_visible(false)
+
+
+func _process(delta: float) -> void:
+	_lock_soldier_visual_transform()
+	if is_local_player:
+		crosshair.set_movement_speed(Vector2(velocity.x, velocity.z).length())
+		_update_downed_hud()
+		_update_revive_input()
+		_update_revive_hud()
+		_update_scoreboard()
 	else:
-		# Comprar arma nova
-		if points >= w_data["cost"]:
-			points -= w_data["cost"]
-			inventory[w_id] = {
-				"mag": w_data["mag_size"],
-				"reserve": w_data["max_ammo"],
-				"unlocked": true
-			}
-			
-			# Limita a 2 armas
-			if not unlocked_weapon_ids.has(w_id):
-				if unlocked_weapon_ids.size() >= 2:
-					# Substitui a arma atual
-					var current_idx = unlocked_weapon_ids.find(current_weapon_id)
-					if current_idx != -1:
-						var old_id = unlocked_weapon_ids[current_idx]
-						inventory[old_id]["unlocked"] = false
-						unlocked_weapon_ids[current_idx] = w_id
-				else:
-					unlocked_weapon_ids.append(w_id)
-					
-			print("[SHOP] Arma comprada: ", w_data["name"])
-			equip_weapon(w_id)
-			
-	_update_hud()
+		_interpolate_remote_transform(delta)
+		_apply_remote_soldier_animation()
+		remote_last_position = global_position
+	if flashlight.visible != flashlight_enabled:
+		_apply_flashlight_visual(flashlight_enabled)
+	if multiplayer.multiplayer_peer and multiplayer.is_server():
+		_update_server_downed(delta)
+		_update_server_revive(delta)
 
 
-func equip_weapon(weapon_id: String) -> void:
-	current_weapon_id = weapon_id
-	for cached_weapon_id in weapon_cache.keys():
-		var cached_weapon := weapon_cache[cached_weapon_id] as Node3D
-		if cached_weapon:
-			cached_weapon.visible = false
+func _on_fps_hands_weapon_taken() -> void:
+	crosshair.set_weapon(fps_hands.weapon)
+	equipped_weapon_index = fps_hands.weapon_index
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		_request_weapon_equipped.rpc_id(1, equipped_weapon_index)
 
-	weapon_model = weapon_cache.get(weapon_id, null) as Node3D
-	if weapon_model:
-		weapon_model.position = blaster_default_pos
-		weapon_model.rotation = blaster_default_rot
-		_apply_player_view_mode()
-		
-	_update_hud()
+
+func _on_local_weapon_fired() -> void:
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		_request_fire.rpc_id(1, fps_hands.weapon_index)
+
+
+func _on_local_melee() -> void:
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		_request_melee.rpc_id(1, fps_hands.weapon_index)
+
+
+func _on_local_weapon_reload() -> void:
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		_request_reload.rpc_id(1, fps_hands.weapon_index)
+
+
+@rpc("any_peer", "call_local", "reliable", 1)
+func _request_fire(weapon_index: int) -> void:
+	if not multiplayer.is_server() or player_state != PlayerState.ALIVE or not _sender_owns_character():
+		return
+	if weapon_index != equipped_weapon_index or weapon_index < 0 or weapon_index >= NETWORK_WEAPON_DAMAGE.size():
+		return
+	var now := Time.get_ticks_msec()
+	var minimum_interval_ms := roundi(NETWORK_FIRE_INTERVAL[weapon_index] * 1000.0)
+	if now - last_server_shot_ms < minimum_interval_ms:
+		return
+	if weapon_index != 5:
+		if int(server_magazines[weapon_index]) <= 0:
+			return
+		server_magazines[weapon_index] = int(server_magazines[weapon_index]) - 1
+	last_server_shot_ms = now
+	validated_shot_weapon = weapon_index
+	validated_shot_hits_remaining = 8 if weapon_index == 4 else 1
+	validated_shot_expires_ms = now + 350
+	validated_attack_is_melee = false
+
+
+@rpc("any_peer", "call_local", "reliable", 1)
+func _request_melee(weapon_index: int) -> void:
+	if not multiplayer.is_server() or player_state != PlayerState.ALIVE or not _sender_owns_character():
+		return
+	if weapon_index != equipped_weapon_index or weapon_index < 0 or weapon_index >= NETWORK_WEAPON_DAMAGE.size():
+		return
+	validated_shot_weapon = weapon_index
+	validated_shot_hits_remaining = 1
+	validated_shot_expires_ms = Time.get_ticks_msec() + 500
+	validated_attack_is_melee = true
+
+
+@rpc("any_peer", "call_local", "reliable", 1)
+func _request_reload(weapon_index: int) -> void:
+	if not multiplayer.is_server() or not _sender_owns_character() or weapon_index < 0 or weapon_index >= server_magazines.size() - 1:
+		return
+	var capacities := [19, 30, 30, 100, 2]
+	var ammo_types := ["9mm", "9mm", "rifle", "rifle", "shell"]
+	var needed := int(capacities[weapon_index]) - int(server_magazines[weapon_index])
+	var ammo_type: String = ammo_types[weapon_index]
+	var supplied := mini(needed, int(server_ammo[ammo_type]))
+	server_magazines[weapon_index] = int(server_magazines[weapon_index]) + supplied
+	server_ammo[ammo_type] = int(server_ammo[ammo_type]) - supplied
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_weapon_equipped(index: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	if sender == network_peer_id:
+		equipped_weapon_index = clampi(index, 0, WEAPON_SLOT_KEYS.size() - 1)
+
+
+func _sender_owns_character() -> bool:
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	return sender == network_peer_id
 
 
 func _physics_process(delta: float) -> void:
 	if not is_local_player:
 		_lock_soldier_visual_transform()
+		return
+	if player_state != PlayerState.ALIVE:
+		velocity = Vector3.ZERO
+		return
+	if local_input_blocked:
+		velocity = Vector3.ZERO
 		_update_soldier_animation(Vector2.ZERO, false)
+		_publish_network_transform()
 		return
 
-	# regen de vida
-	time_since_last_hit += delta
-	if time_since_last_hit >= regen_delay and hp < max_hp:
-		hp = minf(hp + regen_rate * delta, max_hp)
-		_update_hud()
+	insta_kill_timer = maxf(insta_kill_timer - delta, 0.0)
+	double_points_timer = maxf(double_points_timer - delta, 0.0)
 
-	if damage_vignette:
-		var target_alpha = (1.0 - hp / max_hp) * 0.5
-		damage_vignette.color.a = lerpf(damage_vignette.color.a, target_alpha, 4.0 * delta)
-
-	# atualiza timers de powerup
-	if insta_kill_timer > 0.0:
-		insta_kill_timer = maxf(insta_kill_timer - delta, 0.0)
-	if double_points_timer > 0.0:
-		double_points_timer = maxf(double_points_timer - delta, 0.0)
-	_update_powerup_hud()
-
-	if notify_timer > 0.0:
-		notify_timer -= delta
-		if notify_timer <= 0.0 and notify_label:
-			notify_label.text = ""
-
-	var jump_gravity := _get_jump_gravity()
 	if not is_on_floor():
-		velocity.y -= jump_gravity * delta
-
+		velocity.y -= _get_jump_gravity() * delta
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = _get_jump_velocity()
 
 	var is_sprinting := Input.is_action_pressed("sprint")
 	var speed := SPRINT_SPEED if is_sprinting else WALK_SPEED
 	var input_dir := Input.get_vector("a", "d", "w", "s")
-	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
-
+	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	if direction:
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
 	else:
-		velocity.x = move_toward(velocity.x, 0, speed)
-		velocity.z = move_toward(velocity.z, 0, speed)
+		velocity.x = move_toward(velocity.x, 0.0, speed)
+		velocity.z = move_toward(velocity.z, 0.0, speed)
 
 	var stepped_up := false
 	if direction and is_on_floor():
@@ -531,264 +360,231 @@ func _physics_process(delta: float) -> void:
 	if not stepped_up:
 		move_and_slide()
 	_update_soldier_animation(input_dir, is_sprinting)
+	_publish_network_transform()
 	_lock_soldier_visual_transform()
 
-	# Arma Bobbing + Kick
-	t_bob += delta * velocity.length() * float(is_on_floor())
-	if weapon_model and is_instance_valid(weapon_model):
-		weapon_model.position = _headbob(t_bob) + weapon_kick
-		weapon_model.rotation = blaster_default_rot
-		weapon_model.rotation.x += weapon_rot_kick
-	
-	weapon_kick = weapon_kick.lerp(Vector3.ZERO, 15.0 * delta)
-	weapon_rot_kick = lerpf(weapon_rot_kick, 0.0, 12.0 * delta)
 
-	fire_timer = maxf(fire_timer - delta, 0.0)
-	
-	# Controle de Recarga e Facada
-	if is_meleeing:
-		melee_timer -= delta
-		if melee_timer <= 0.0:
-			is_meleeing = false
-	elif is_reloading:
-		var reload_speed_mult := 2.0 if active_perks.has("speed_cola") else 1.0
-		reload_timer -= delta * reload_speed_mult
-		if reload_timer <= 0.0:
-			_finish_reload()
-	else:
-		var inv = inventory[current_weapon_id]
-		# Recarregar pelo input R
-		if Input.is_physical_key_pressed(KEY_R) and inv["mag"] < WEAPONS[current_weapon_id]["mag_size"] and inv["reserve"] > 0:
-			_start_reload()
-		# Atirar
-		elif Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and fire_timer == 0.0 and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-			if inv["mag"] > 0:
-				_shoot()
-				var base_fire_rate = WEAPONS[current_weapon_id]["fire_rate"]
-				fire_timer = base_fire_rate
-			else:
-				# Tenta atirar sem bala -> Auto reload se tiver reserva
-				if inv["reserve"] > 0:
-					_start_reload()
-
-	# Retorno gradual do recoil de câmera
-	if current_recoil > 0.0:
-		var ret := minf(current_recoil, RECOIL_RETURN * delta)
-		camera.rotate_x(-ret)
-		_clamp_pitch()
-		current_recoil -= ret
-
-	_tick_flash_timer(delta)
-	_tick_hitmarker_timer(delta)
-
-
-func _start_melee() -> void:
-	if is_meleeing or is_reloading:
+func _on_fps_hands_give_damage(collider: Node3D, base_damage: float, _point: Vector3) -> void:
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		var predicted_multiplier := 1.0
+		if collider.has_method("get_damage_multiplier"):
+			predicted_multiplier = float(collider.call("get_damage_multiplier"))
+		hitmarker.call("show_hit", predicted_multiplier > 1.0, false)
+		_request_weapon_damage.rpc_id(1, collider.get_path(), base_damage, _point, fps_hands.weapon_index)
 		return
-	is_meleeing = true
-	melee_timer = MELEE_DURATION
-	
-	# Animação simulada de coronhada violenta
-	weapon_kick = Vector3(0.0, 0.0, -0.6)
-	weapon_rot_kick = -0.5
-	
-	# Checa acerto
-	var zombies = get_tree().get_nodes_in_group("zombies")
-	var closest: Node3D = null
-	var min_dist := 2.5
-	
-	for z in zombies:
-		if z.has_method("take_damage") and not z.is_dead:
-			var dist = global_position.distance_to(z.global_position)
-			if dist < min_dist:
-				min_dist = dist
-				closest = z
-				
-	if closest:
-		var was_dead = closest.is_dead
-		closest.take_damage(150.0) # Dano instakill inicial
-		_spawn_impact(closest.global_position + Vector3(0, 1.5, 0), Vector3.ZERO)
-		
-		if not was_dead:
-			if closest.is_dead or closest.hp <= 0.0:
-				_add_points(130) # Facada mata = 130 pts
-			else:
-				_add_points(10)
+	_apply_weapon_damage(collider, base_damage)
 
 
-func _start_reload() -> void:
-	is_reloading = true
-	reload_timer = RELOAD_TIME
-	_update_hud()
-	
-	# Efeito visual improvisado abaixando a arma
-	weapon_kick.y = -0.3
-	
-	var w_data = WEAPONS[current_weapon_id]
-	if w_data.has("sound_reload") and w_data["sound_reload"]:
-		var stream: AudioStream = w_data["sound_reload"]
-		if sfx_reload.stream != stream:
-			sfx_reload.stream = stream
-		var base_reload_volume = -8.0
-		var weapon_reload_db = w_data.get("sound_reload_db", 0.0)
-		sfx_reload.volume_db = base_reload_volume + weapon_reload_db
-		
-		# ajusta velocidade do som se tiver speed cola
-		var reload_speed_mult := 2.0 if active_perks.has("speed_cola") else 1.0
-		sfx_reload.pitch_scale = reload_speed_mult
-		
-		sfx_reload.play()
-		reload_timer = stream.get_length()
-
-
-func _finish_reload() -> void:
-	is_reloading = false
-	var inv = inventory[current_weapon_id]
-	var w_data = WEAPONS[current_weapon_id]
-	
-	var needed = w_data["mag_size"] - inv["mag"]
-	var taken = min(needed, inv["reserve"])
-	inv["mag"] += taken
-	inv["reserve"] -= taken
-	
-	_update_hud()
-
-
-func _shoot() -> void:
-	# Gastar bala
-	inventory[current_weapon_id]["mag"] -= 1
-	_update_hud()
-	
-	var w_data = WEAPONS[current_weapon_id]
-
-	if w_data.has("sound_shoot") and w_data["sound_shoot"]:
-		var stream: AudioStream = w_data["sound_shoot"]
-		var offset = w_data.get("sound_shoot_offset", 0.0)
-		var base_shoot_volume = -6.0
-		var weapon_shoot_db = w_data.get("sound_shoot_db", 0.0)
-		
-		# escolhe um player disponivel no pool
-		var p = sfx_shoot_pool[next_shoot_player_idx]
-		next_shoot_player_idx = (next_shoot_player_idx + 1) % sfx_shoot_pool.size()
-		
-		p.stop()
-		p.stream = stream
-		p.volume_db = base_shoot_volume + weapon_shoot_db
-		p.pitch_scale = randf_range(0.94, 1.06)
-		p.play(offset)
-
-	muzzle_flash.visible = true
-	muzzle_flash_timer = 0.05
-
-	raycast.force_raycast_update()
-
-	# Recoil de câmera da arma atual
-	var recoil = w_data["recoil_amount"]
-	camera.rotate_x(recoil)
-	_clamp_pitch()
-	current_recoil += recoil
-
-	# Recoil de arma
-	weapon_kick = Vector3(0.0, 0.02, 0.12)
-	weapon_rot_kick = 0.25
-
-	if not raycast.is_colliding():
+@rpc("any_peer", "call_local", "reliable", 1)
+func _request_weapon_damage(collider_path: NodePath, base_damage: float, point: Vector3, weapon_index: int) -> void:
+	if not multiplayer.is_server() or player_state != PlayerState.ALIVE:
 		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	if sender != network_peer_id or weapon_index < 0 or weapon_index >= NETWORK_WEAPON_DAMAGE.size():
+		return
+	var expected_damage: float = NETWORK_MELEE_DAMAGE if validated_attack_is_melee else float(NETWORK_WEAPON_DAMAGE[weapon_index])
+	if not is_equal_approx(base_damage, expected_damage):
+		return
+	var collider := get_node_or_null(collider_path) as Node3D
+	var allowed_range: float = NETWORK_MELEE_RANGE if validated_attack_is_melee else float(NETWORK_WEAPON_RANGE[weapon_index])
+	if not collider or collider.is_in_group("player") or global_position.distance_to(point) > allowed_range + 2.0:
+		return
+	var now := Time.get_ticks_msec()
+	if weapon_index != validated_shot_weapon or validated_shot_hits_remaining <= 0 or now > validated_shot_expires_ms:
+		return
+	validated_shot_hits_remaining -= 1
+	validated_attack_is_melee = false
+	_apply_weapon_damage(collider, base_damage)
 
-	var collider := raycast.get_collider()
 
+func _apply_weapon_damage(collider: Node3D, base_damage: float) -> void:
+	if collider.is_in_group("player"):
+		return
 	var multiplier := 1.0
 	var is_headshot := false
-	
-	if collider and collider.has_method("get_damage_multiplier"):
-		var raw_mult = collider.get_damage_multiplier()
-		if raw_mult > 1.0:
-			is_headshot = true
-			multiplier = w_data.get("headshot_mult", 1.5)
-		else:
-			multiplier = raw_mult
+	if collider.has_method("get_damage_multiplier"):
+		multiplier = float(collider.call("get_damage_multiplier"))
+		is_headshot = multiplier > 1.0
+
+	show_notification("Hit: " + collider.name + " | Mult: " + str(multiplier))
 
 	var target := _resolve_damageable(collider)
-	if target:
-		var was_dead = target.is_dead
-		
-		# Aplica dano normal ou dano massivo de insta-kill
-		var final_damage = w_data["damage"] * multiplier
-		if active_perks.has("double_tap"):
-			final_damage *= 2.0
-		if insta_kill_timer > 0.0:
-			final_damage = 999999.0
-			
-		target.take_damage(final_damage, is_headshot)
-		_show_hitmarker(is_headshot)
-		
-		# Pontuação CoD Zombies
-		if not was_dead:
-			_add_points(10) # Acerto
-			if target.is_dead or target.hp <= 0.0:
-				if is_headshot:
-					_add_points(90) # Kill bônus
-				else:
-					_add_points(50) # Kill bônus normal
-
-	_spawn_impact(raycast.get_collision_point(), raycast.get_collision_normal())
+	if not target:
+		return
+	var was_dead := bool(target.get("is_dead"))
+	var final_damage := base_damage * multiplier
+	if active_perks.has("double_tap"):
+		final_damage *= 2.0
+	if insta_kill_timer > 0.0:
+		final_damage = 999999.0
+	target.call("take_damage", final_damage, is_headshot)
+	if was_dead:
+		return
+	var is_kill := bool(target.get("is_dead")) or float(target.get("hp")) <= 0.0
+	if multiplayer.multiplayer_peer and multiplayer.is_server() and network_peer_id != 1:
+		_confirm_hitmarker.rpc_id(network_peer_id, is_headshot, is_kill)
+	elif is_local_player:
+		hitmarker.call("show_hit", is_headshot, is_kill)
+	_add_points(10)
+	if is_kill:
+		_add_points(90 if is_headshot else 50)
 
 
-func _add_points(amount: int) -> void:
-	var final_amount = amount
-	if double_points_timer > 0.0:
-		final_amount *= 2
-	points += final_amount
-	_update_hud()
+@rpc("any_peer", "call_remote", "reliable", 1)
+func _confirm_hitmarker(is_headshot: bool, is_kill: bool) -> void:
+	if not multiplayer.multiplayer_peer or multiplayer.get_remote_sender_id() != 1 or not is_local_player:
+		return
+	hitmarker.call("show_hit", is_headshot, is_kill)
 
 
-## Hitmarker visual — amarelo para headshot, vermelho para body.
-func _show_hitmarker(is_headshot: bool) -> void:
-	hitmarker.visible = true
-	hitmarker_timer = 0.2 if is_headshot else 0.15
-	if is_headshot:
-		hitmarker.text = "✦"
-		hitmarker.add_theme_color_override("font_color", Color(1.0, 0.9, 0.0, 1.0))
+func _publish_network_transform() -> void:
+	if not multiplayer.multiplayer_peer or not is_local_player:
+		return
+	network_position = position
+	network_rotation = rotation
+	network_camera_rotation = camera.rotation
+
+
+func _interpolate_remote_transform(delta: float) -> void:
+	if not multiplayer.multiplayer_peer or is_local_player:
+		return
+	if position.distance_to(network_position) > NETWORK_SNAP_DISTANCE:
+		position = network_position
 	else:
-		hitmarker.text = "x"
-		hitmarker.add_theme_color_override("font_color", Color(1.0, 0.0, 0.0, 1.0))
+		var weight := 1.0 - exp(-NETWORK_INTERPOLATION_SPEED * delta)
+		position = position.lerp(network_position, weight)
+		rotation.x = lerp_angle(rotation.x, network_rotation.x, weight)
+		rotation.y = lerp_angle(rotation.y, network_rotation.y, weight)
+		rotation.z = lerp_angle(rotation.z, network_rotation.z, weight)
+		camera.rotation.x = lerp_angle(camera.rotation.x, network_camera_rotation.x, weight)
+		camera.rotation.y = lerp_angle(camera.rotation.y, network_camera_rotation.y, weight)
+		camera.rotation.z = lerp_angle(camera.rotation.z, network_camera_rotation.z, weight)
 
 
 func _resolve_damageable(collider: Node) -> Node:
 	var current := collider
-	while current != null:
+	while current:
 		if current.has_method("take_damage"):
 			return current
 		current = current.get_parent()
 	return null
 
 
-func _spawn_impact(pos: Vector3, normal: Vector3) -> void:
-	var p := CPUParticles3D.new()
-	get_tree().current_scene.add_child(p)
-	p.global_position = pos
-	if normal != Vector3.ZERO:
-		p.look_at(pos + normal, Vector3.UP)
-	p.emitting = true
-	p.one_shot = true
-	p.explosiveness = 0.95
-	p.amount = 8
-	p.lifetime = 0.3
-	p.direction = Vector3(0, 1, 0)
-	p.spread = 70.0
-	p.initial_velocity_min = 0.5
-	p.initial_velocity_max = 2.0
-	p.gravity = Vector3(0, -5.0, 0)
-	p.scale_amount_min = 0.008
-	p.scale_amount_max = 0.025
-	get_tree().create_timer(1.2).timeout.connect(p.queue_free)
+func _add_points(amount: int) -> void:
+	points += amount * (2 if double_points_timer > 0.0 else 1)
 
 
-func _headbob(time: float) -> Vector3:
-	var pos := blaster_default_pos
-	pos.y += sin(time * BOB_FREQ) * BOB_AMP
-	pos.x += cos(time * BOB_FREQ / 2.0) * BOB_AMP
-	return pos
+func _setup_soldier_animations() -> void:
+	soldier_anim_player = SoldierVisualHelper.setup_pistol_animation_library(
+		soldier_model,
+		SOLDIER_PISTOL_ANIMS,
+		SOLDIER_ANIM_LIBRARY
+	)
+	_play_soldier_animation("idle")
+
+
+func _update_soldier_animation(input_dir: Vector2, is_sprinting: bool) -> void:
+	if not soldier_anim_player:
+		return
+	network_animation_airborne = not is_on_floor()
+	network_animation_state = _select_soldier_animation_state(input_dir, is_sprinting, network_animation_airborne)
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if network_animation_state == SoldierAnimState.IDLE or network_animation_state == SoldierAnimState.JUMP:
+		network_animation_speed = 1.0
+	else:
+		var reference_speed := SPRINT_SPEED if is_sprinting else WALK_SPEED
+		network_animation_speed = clampf(horizontal_speed / reference_speed, 0.75, 1.35)
+	_play_soldier_animation(SOLDIER_ANIM_NAMES[network_animation_state], network_animation_speed)
+	_capture_soldier_animation_phase()
+
+
+func _select_soldier_animation_state(input_dir: Vector2, is_sprinting: bool, airborne: bool) -> int:
+	if airborne:
+		return SoldierAnimState.JUMP
+	if input_dir.length_squared() < 0.01:
+		return SoldierAnimState.IDLE
+
+	var horizontal := 0
+	if input_dir.x < -0.35:
+		horizontal = -1
+	elif input_dir.x > 0.35:
+		horizontal = 1
+	var vertical := 0
+	if input_dir.y < -0.35:
+		vertical = -1
+	elif input_dir.y > 0.35:
+		vertical = 1
+
+	var walk_state := SoldierAnimState.WALK_FORWARD
+	if vertical < 0 and horizontal < 0:
+		walk_state = SoldierAnimState.WALK_FORWARD_LEFT
+	elif vertical < 0 and horizontal > 0:
+		walk_state = SoldierAnimState.WALK_FORWARD_RIGHT
+	elif vertical > 0 and horizontal < 0:
+		walk_state = SoldierAnimState.WALK_BACKWARD_LEFT
+	elif vertical > 0 and horizontal > 0:
+		walk_state = SoldierAnimState.WALK_BACKWARD_RIGHT
+	elif vertical > 0:
+		walk_state = SoldierAnimState.WALK_BACKWARD
+	elif horizontal < 0:
+		walk_state = SoldierAnimState.WALK_LEFT
+	elif horizontal > 0:
+		walk_state = SoldierAnimState.WALK_RIGHT
+	return walk_state + (SoldierAnimState.RUN_FORWARD - SoldierAnimState.WALK_FORWARD) if is_sprinting else walk_state
+
+
+func _play_soldier_animation(state: String, playback_speed := 1.0) -> void:
+	if not soldier_anim_player:
+		return
+	var animation_name := "%s/%s" % [SOLDIER_ANIM_LIBRARY, state]
+	if soldier_anim_player.has_animation(animation_name) and soldier_current_anim != state:
+		soldier_current_anim = state
+		soldier_anim_player.play(animation_name, 0.15)
+	soldier_anim_player.speed_scale = playback_speed
+
+
+func _capture_soldier_animation_phase() -> void:
+	if not soldier_anim_player or soldier_anim_player.current_animation_length <= 0.0:
+		network_animation_phase = 0.0
+		return
+	network_animation_phase = clampf(
+		soldier_anim_player.current_animation_position / soldier_anim_player.current_animation_length,
+		0.0,
+		1.0
+	)
+
+
+func _apply_remote_soldier_animation() -> void:
+	if not soldier_anim_player:
+		return
+	var state := clampi(network_animation_state, SoldierAnimState.IDLE, SoldierAnimState.JUMP)
+	var state_name: String = SOLDIER_ANIM_NAMES[state]
+	_play_soldier_animation(state_name, network_animation_speed)
+	var length := soldier_anim_player.current_animation_length
+	if length <= 0.0:
+		return
+	var local_phase := clampf(soldier_anim_player.current_animation_position / length, 0.0, 1.0)
+	var phase_error := absf(local_phase - network_animation_phase)
+	if state != SoldierAnimState.JUMP:
+		phase_error = minf(phase_error, 1.0 - phase_error)
+	if phase_error > 0.12:
+		soldier_anim_player.seek(network_animation_phase * length, true)
+
+
+func _lock_soldier_visual_transform() -> void:
+	if soldier_model:
+		soldier_model.transform = soldier_default_transform
+
+
+func _apply_local_player_visibility() -> void:
+	camera.current = is_local_player
+	soldier_model.visible = not is_local_player
+	fps_hands.visible = is_local_player
+	menu_layer.visible = is_local_player
+	ammo_counter.visible = is_local_player
+	health_hud.visible = is_local_player
 
 
 func _try_step_up(direction: Vector3, speed: float, delta: float) -> bool:
@@ -796,20 +592,31 @@ func _try_step_up(direction: Vector3, speed: float, delta: float) -> bool:
 	if horizontal_dir.length_squared() < 0.001:
 		return false
 	horizontal_dir = horizontal_dir.normalized()
-
 	var forward_motion := horizontal_dir * minf(speed * delta, STEP_FORWARD_DISTANCE)
 	if not test_move(global_transform, forward_motion):
 		return false
-
 	var raised_transform := global_transform.translated(Vector3.UP * STEP_HEIGHT)
 	if test_move(raised_transform, forward_motion):
 		return false
-
 	global_transform = raised_transform
 	move_and_collide(forward_motion)
 	_snap_down_after_step()
 	velocity.y = 0.0
 	return true
+
+
+func _snap_down_after_step() -> void:
+	var query := PhysicsRayQueryParameters3D.create(
+		global_position + Vector3.UP * 0.2,
+		global_position + Vector3.DOWN * (STEP_HEIGHT + STEP_DOWN_DISTANCE)
+	)
+	query.collision_mask = collision_mask
+	query.collide_with_areas = false
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		var hit_position: Vector3 = hit["position"]
+		global_position.y = hit_position.y + 0.05
 
 
 func _get_jump_velocity() -> float:
@@ -820,28 +627,26 @@ func _get_jump_gravity() -> float:
 	return (2.0 * JUMP_HEIGHT) / (JUMP_TIME_TO_APEX * JUMP_TIME_TO_APEX)
 
 
-func _snap_down_after_step() -> void:
-	var query := PhysicsRayQueryParameters3D.create(
-		global_position + Vector3.UP * 0.2,
-		global_position + Vector3.DOWN * (STEP_HEIGHT + STEP_DOWN_DISTANCE)
-	)
-	query.collision_mask = collision_mask
-	query.collide_with_areas = false
-	var excludes: Array[RID] = [get_rid()]
-	query.exclude = excludes
-
-	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
-		return
-
-	var hit_position: Vector3 = hit["position"]
-	global_position.y = hit_position.y + 0.05
-
-
 func set_flashlight_enabled(enabled: bool) -> void:
-	if not flashlight:
-		return
+	if multiplayer.multiplayer_peer and is_local_player and not multiplayer.is_server():
+		_request_flashlight.rpc_id(1, enabled)
 	flashlight_enabled = enabled
+	_apply_flashlight_visual(enabled)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_flashlight(enabled: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	if sender == network_peer_id:
+		flashlight_enabled = enabled
+		_apply_flashlight_visual(enabled)
+
+
+func _apply_flashlight_visual(enabled: bool) -> void:
 	flashlight.visible = enabled
 	flashlight.light_color = Color(1.0, 0.94, 0.82, 1.0)
 	flashlight.light_energy = 10.5 if enabled else 0.0
@@ -851,160 +656,471 @@ func set_flashlight_enabled(enabled: bool) -> void:
 	flashlight.light_specular = 0.35
 	flashlight.shadow_bias = 0.045
 	flashlight.shadow_enabled = enabled and bool(GraphicsSettings.get_setting("quality.flashlight_shadows", false))
-	if flashlight_fill:
-		flashlight_fill.visible = enabled
-		flashlight_fill.light_color = Color(0.95, 0.88, 0.72, 1.0)
-		flashlight_fill.light_energy = 1.15 if enabled else 0.0
-		flashlight_fill.omni_range = 9.0
-		flashlight_fill.omni_attenuation = 1.8
-		flashlight_fill.light_specular = 0.12
-
-
-func _clamp_pitch() -> void:
-	camera.rotation.x = clamp(camera.rotation.x, -PI / 2.0, PI / 2.0)
-	third_person_camera_pivot.rotation.x = clamp(third_person_camera_pivot.rotation.x, -PI / 3.0, PI / 4.0)
-
-
-func _tick_flash_timer(delta: float) -> void:
-	if muzzle_flash_timer <= 0.0:
-		return
-	muzzle_flash_timer -= delta
-	if muzzle_flash_timer <= 0.0:
-		muzzle_flash.visible = false
-
-
-func _tick_hitmarker_timer(delta: float) -> void:
-	if hitmarker_timer <= 0.0:
-		return
-	hitmarker_timer -= delta
-	if hitmarker_timer <= 0.0:
-		hitmarker.visible = false
+	flashlight_fill.visible = enabled
+	flashlight_fill.light_energy = 1.15 if enabled else 0.0
 
 
 func take_damage(amount: float) -> void:
-	hp -= amount
-	hp = maxf(hp, 0.0)
-	time_since_last_hit = 0.0
-	_update_hud()
-	
-	# Efeito rápido de flash vermelho de dano na tela
-	if damage_vignette:
-		damage_vignette.color.a = clampf((1.0 - hp / max_hp) * 0.5 + 0.15, 0.0, 0.65)
-		
+	if player_state != PlayerState.ALIVE:
+		return
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		return
+	_set_health(hp - maxf(amount, 0.0))
 	if hp <= 0.0:
-		_die()
+		if multiplayer.multiplayer_peer:
+			_enter_downed()
+		else:
+			get_tree().reload_current_scene()
+	if multiplayer.multiplayer_peer and multiplayer.is_server() and network_peer_id != 1 and network_peer_id in multiplayer.get_peers():
+		_receive_authoritative_damage.rpc_id(network_peer_id, hp, player_state, downed_remaining)
 
 
-func _die() -> void:
-	get_tree().reload_current_scene()
+@rpc("any_peer", "call_remote", "reliable", 2)
+func _receive_authoritative_damage(authoritative_hp: float, authoritative_state: int, authoritative_downed_time: float) -> void:
+	if not multiplayer.multiplayer_peer or multiplayer.get_remote_sender_id() != 1 or not is_local_player:
+		return
+	player_state = authoritative_state
+	downed_remaining = authoritative_downed_time
+	_set_health(authoritative_hp)
+	_update_downed_hud()
 
 
-# interacoes
+func _set_health(new_hp: float) -> void:
+	hp = clampf(new_hp, 0.0, max_hp)
+	if health_hud:
+		health_hud.set_health(hp, max_hp)
+	health_changed.emit(hp, max_hp)
+
+
+func _enter_downed() -> void:
+	player_state = PlayerState.DOWNED
+	downed_remaining = 45.0
+	velocity = Vector3.ZERO
+	if multiplayer.is_server():
+		call_deferred("_check_team_defeat")
+
+
+func _update_server_downed(delta: float) -> void:
+	if player_state != PlayerState.DOWNED:
+		return
+	downed_remaining = maxf(downed_remaining - delta, 0.0)
+	if downed_remaining <= 0.0:
+		player_state = PlayerState.SPECTATING
+		_check_team_defeat()
+
+
+func _update_revive_input() -> void:
+	if not multiplayer.multiplayer_peer or player_state != PlayerState.ALIVE or not is_local_player:
+		return
+	if Input.is_key_pressed(KEY_E):
+		var target := _find_nearest_downed_player()
+		var target_id := int(target.get("network_peer_id")) if target else 0
+		if target_id != revive_target_peer_id:
+			revive_target_peer_id = target_id
+			_request_revive.rpc_id(1, target_id, true)
+	elif revive_target_peer_id != 0:
+		_request_revive.rpc_id(1, revive_target_peer_id, false)
+		revive_target_peer_id = 0
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_revive(target_peer_id: int, active: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	if sender != network_peer_id:
+		return
+	revive_target_peer_id = target_peer_id if active else 0
+	if not active:
+		revive_progress = 0.0
+
+
+func _update_server_revive(delta: float) -> void:
+	if player_state != PlayerState.ALIVE or revive_target_peer_id == 0:
+		revive_progress = 0.0
+		return
+	var target := _find_player_by_peer_id(revive_target_peer_id)
+	if not target or int(target.get("player_state")) != PlayerState.DOWNED or global_position.distance_to(target.global_position) > REVIVE_RANGE:
+		revive_target_peer_id = 0
+		revive_progress = 0.0
+		return
+	revive_progress += delta
+	if revive_progress >= REVIVE_DURATION:
+		target.call("_revive_from_server")
+		revive_target_peer_id = 0
+		revive_progress = 0.0
+
+
+func _revive_from_server() -> void:
+	if not multiplayer.is_server() or player_state != PlayerState.DOWNED:
+		return
+	player_state = PlayerState.ALIVE
+	downed_remaining = 0.0
+	_set_health(40.0)
+
+
+func _find_nearest_downed_player() -> Node3D:
+	var nearest: Node3D = null
+	var nearest_distance := REVIVE_RANGE
+	for candidate in get_tree().get_nodes_in_group("player"):
+		if candidate == self or int(candidate.get("player_state")) != PlayerState.DOWNED:
+			continue
+		var distance := global_position.distance_to(candidate.global_position)
+		if distance <= nearest_distance:
+			nearest = candidate as Node3D
+			nearest_distance = distance
+	return nearest
+
+
+func _find_player_by_peer_id(peer_id: int) -> Node3D:
+	for candidate in get_tree().get_nodes_in_group("player"):
+		if int(candidate.get("network_peer_id")) == peer_id:
+			return candidate as Node3D
+	return null
+
+
+func _check_team_defeat() -> void:
+	if not multiplayer.multiplayer_peer or not multiplayer.is_server():
+		return
+	for candidate in get_tree().get_nodes_in_group("player"):
+		if int(candidate.get("player_state")) == PlayerState.ALIVE:
+			return
+	_end_multiplayer_match.rpc("Todos os jogadores foram derrubados.")
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _end_multiplayer_match(reason: String) -> void:
+	if not multiplayer.is_server() and multiplayer.get_remote_sender_id() != 1:
+		return
+	NetworkManager.leave_session(reason)
+	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
+
+
+func _create_downed_hud() -> void:
+	if not is_local_player:
+		return
+	downed_overlay = ColorRect.new()
+	downed_overlay.name = "DownedOverlay"
+	downed_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	downed_overlay.color = Color(0.42, 0.0, 0.0, 0.72)
+	downed_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	downed_overlay.visible = false
+	$CrosshairLayer.add_child(downed_overlay)
+
+	var downed_vignette := ColorRect.new()
+	downed_vignette.name = "DarkVignette"
+	downed_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	downed_vignette.color = Color(0.08, 0.0, 0.0, 0.34)
+	downed_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	downed_overlay.add_child(downed_vignette)
+
+	downed_status_label = Label.new()
+	downed_status_label.name = "DownedStatus"
+	downed_status_label.anchor_left = 0.5
+	downed_status_label.anchor_top = 0.5
+	downed_status_label.anchor_right = 0.5
+	downed_status_label.anchor_bottom = 0.5
+	downed_status_label.offset_left = -330.0
+	downed_status_label.offset_top = -82.0
+	downed_status_label.offset_right = 330.0
+	downed_status_label.offset_bottom = 82.0
+	downed_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	downed_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	downed_status_label.add_theme_font_size_override("font_size", 30)
+	downed_status_label.add_theme_color_override("font_color", Color.WHITE)
+	downed_status_label.add_theme_color_override("font_shadow_color", Color(0.08, 0.0, 0.0, 0.9))
+	downed_status_label.add_theme_constant_override("shadow_offset_x", 2)
+	downed_status_label.add_theme_constant_override("shadow_offset_y", 2)
+	downed_overlay.add_child(downed_status_label)
+
+	revive_prompt_panel = PanelContainer.new()
+	revive_prompt_panel.name = "RevivePrompt"
+	revive_prompt_panel.anchor_left = 0.5
+	revive_prompt_panel.anchor_top = 1.0
+	revive_prompt_panel.anchor_right = 0.5
+	revive_prompt_panel.anchor_bottom = 1.0
+	revive_prompt_panel.offset_left = -235.0
+	revive_prompt_panel.offset_top = -178.0
+	revive_prompt_panel.offset_right = 235.0
+	revive_prompt_panel.offset_bottom = -72.0
+	revive_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	revive_prompt_panel.visible = false
+	var prompt_style := StyleBoxFlat.new()
+	prompt_style.bg_color = Color(0.025, 0.03, 0.04, 0.92)
+	prompt_style.border_width_left = 2
+	prompt_style.border_width_top = 2
+	prompt_style.border_width_right = 2
+	prompt_style.border_width_bottom = 2
+	prompt_style.border_color = Color(0.86, 0.9, 0.94, 0.85)
+	prompt_style.corner_radius_top_left = 7
+	prompt_style.corner_radius_top_right = 7
+	prompt_style.corner_radius_bottom_left = 7
+	prompt_style.corner_radius_bottom_right = 7
+	revive_prompt_panel.add_theme_stylebox_override("panel", prompt_style)
+	$CrosshairLayer.add_child(revive_prompt_panel)
+
+	var prompt_margin := MarginContainer.new()
+	prompt_margin.add_theme_constant_override("margin_left", 18)
+	prompt_margin.add_theme_constant_override("margin_top", 12)
+	prompt_margin.add_theme_constant_override("margin_right", 18)
+	prompt_margin.add_theme_constant_override("margin_bottom", 12)
+	revive_prompt_panel.add_child(prompt_margin)
+	var prompt_content := VBoxContainer.new()
+	prompt_content.add_theme_constant_override("separation", 8)
+	prompt_margin.add_child(prompt_content)
+	revive_prompt_label = Label.new()
+	revive_prompt_label.name = "PromptLabel"
+	revive_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	revive_prompt_label.add_theme_font_size_override("font_size", 19)
+	revive_prompt_label.add_theme_color_override("font_color", Color.WHITE)
+	prompt_content.add_child(revive_prompt_label)
+	revive_progress_bar = ProgressBar.new()
+	revive_progress_bar.name = "ReviveProgress"
+	revive_progress_bar.custom_minimum_size = Vector2(0.0, 18.0)
+	revive_progress_bar.min_value = 0.0
+	revive_progress_bar.max_value = REVIVE_DURATION
+	revive_progress_bar.show_percentage = false
+	revive_progress_bar.visible = false
+	var progress_background := StyleBoxFlat.new()
+	progress_background.bg_color = Color(0.12, 0.14, 0.17, 1.0)
+	progress_background.corner_radius_top_left = 4
+	progress_background.corner_radius_top_right = 4
+	progress_background.corner_radius_bottom_left = 4
+	progress_background.corner_radius_bottom_right = 4
+	revive_progress_bar.add_theme_stylebox_override("background", progress_background)
+	var progress_fill := StyleBoxFlat.new()
+	progress_fill.bg_color = Color(0.9, 0.94, 0.97, 1.0)
+	progress_fill.corner_radius_top_left = 4
+	progress_fill.corner_radius_top_right = 4
+	progress_fill.corner_radius_bottom_left = 4
+	progress_fill.corner_radius_bottom_right = 4
+	revive_progress_bar.add_theme_stylebox_override("fill", progress_fill)
+	prompt_content.add_child(revive_progress_bar)
+
+
+func _update_downed_hud() -> void:
+	if not downed_overlay or not downed_status_label:
+		return
+	downed_overlay.visible = player_state != PlayerState.ALIVE
+	if player_state == PlayerState.DOWNED:
+		downed_overlay.color = Color(0.42, 0.0, 0.0, 0.72)
+		downed_status_label.text = "VOCE ESTA MORRENDO\n%.0f SEGUNDOS\n\nAGUARDE UM ALIADO" % ceilf(downed_remaining)
+	elif player_state == PlayerState.SPECTATING:
+		downed_overlay.color = Color(0.18, 0.0, 0.0, 0.82)
+		downed_status_label.text = "VOCE MORREU\nMODO ESPECTADOR"
+
+
+func _update_revive_hud() -> void:
+	if not revive_prompt_panel or not revive_prompt_label or not revive_progress_bar:
+		return
+	if player_state != PlayerState.ALIVE or not multiplayer.multiplayer_peer:
+		revive_prompt_panel.visible = false
+		return
+	var target := _find_nearest_downed_player()
+	if not target:
+		revive_prompt_panel.visible = false
+		return
+	revive_prompt_panel.visible = true
+	var target_name := String(target.get("player_display_name"))
+	if target_name.is_empty():
+		target_name = "ALIADO"
+	var is_current_target := revive_target_peer_id == int(target.get("network_peer_id"))
+	var is_reviving := is_current_target and (Input.is_key_pressed(KEY_E) or revive_progress > 0.0)
+	revive_prompt_label.text = "REANIMANDO %s" % target_name.to_upper() if is_reviving else "SEGURE [E] PARA REANIMAR %s" % target_name.to_upper()
+	revive_progress_bar.visible = is_reviving
+	revive_progress_bar.value = clampf(revive_progress, 0.0, REVIVE_DURATION)
+
+
+func _create_scoreboard() -> void:
+	if not is_local_player:
+		return
+	var panel := PanelContainer.new()
+	panel.name = "Scoreboard"
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.18
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.18
+	panel.offset_left = -280.0
+	panel.offset_top = 0.0
+	panel.offset_right = 280.0
+	panel.offset_bottom = 300.0
+	panel.visible = false
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.02, 0.025, 0.034, 0.92)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.96, 0.77, 0.19, 0.72)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	panel.add_theme_stylebox_override("panel", style)
+	$CrosshairLayer.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	margin.add_child(content)
+	var title := Label.new()
+	title.text = "JOGADORES NA PARTIDA"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(0.96, 0.77, 0.19))
+	content.add_child(title)
+	var separator := HSeparator.new()
+	content.add_child(separator)
+	var list := Label.new()
+	list.name = "PlayerList"
+	list.add_theme_font_size_override("font_size", 17)
+	list.add_theme_color_override("font_color", Color(0.9, 0.92, 0.94))
+	list.text = "Jogador"
+	content.add_child(list)
+	var hint := Label.new()
+	hint.text = "Segure TAB para visualizar"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color(0.58, 0.62, 0.67))
+	content.add_child(hint)
+
+
+func _set_scoreboard_visible(enabled: bool) -> void:
+	var scoreboard := get_node_or_null("CrosshairLayer/Scoreboard") as Control
+	if scoreboard:
+		scoreboard.visible = enabled
+		if enabled:
+			_update_scoreboard()
+
+
+func _update_scoreboard() -> void:
+	var scoreboard := get_node_or_null("CrosshairLayer/Scoreboard") as Control
+	if not scoreboard or not scoreboard.visible:
+		return
+	var list := scoreboard.get_node("MarginContainer/VBoxContainer/PlayerList") as Label
+	var lines := PackedStringArray()
+	if multiplayer.multiplayer_peer and not NetworkManager.players.is_empty():
+		for peer_id: int in NetworkManager.players:
+			var data: Dictionary = NetworkManager.players[peer_id]
+			var player_node := _find_player_by_peer_id(peer_id)
+			var status := "CONECTANDO"
+			var health := 0
+			if player_node:
+				health = roundi(float(player_node.get("hp")))
+				status = _player_state_label(int(player_node.get("player_state")))
+			var host_tag := "  [HOST]" if bool(data.get("host", false)) else ""
+			lines.append("%s%s    %d HP    %s" % [String(data.get("name", "Jogador")), host_tag, health, status])
+	else:
+		lines.append("Jogador    %d HP    %s" % [roundi(hp), _player_state_label(player_state)])
+	list.text = "\n\n".join(lines)
+
+
+func _player_state_label(value: int) -> String:
+	match value:
+		PlayerState.DOWNED:
+			return "CAIDO"
+		PlayerState.SPECTATING:
+			return "ESPECTADOR"
+		_:
+			return "ATIVO"
+
 
 func register_interactable(node: Node3D) -> void:
 	nearby_interactable = node
-	_update_interaction_hud()
 
 
 func unregister_interactable(node: Node3D) -> void:
 	if nearby_interactable == node:
 		nearby_interactable = null
-		_update_interaction_hud()
 
 
 func _interact_with(obj: Node3D) -> void:
-	# Máquina de Perks
-	if "perk_id" in obj:
-		var perk_id: String = obj.perk_id
-		var perk_name: String = obj.perk_name
-		var cost: int = obj.cost
-		
-		if active_perks.has(perk_id):
-			show_notification("Você já tem " + perk_name + "!")
-			return
-			
-		if points >= cost:
-			points -= cost
-			active_perks.append(perk_id)
-			show_notification(perk_name + " adquirido!")
-			
-			# Efeitos imediatos
-			if perk_id == "juggernog":
-				max_hp = 250.0
-				hp = max_hp # Cura instantânea
-				
-			_update_hud()
-			_update_interaction_hud()
-		else:
-			show_notification("Pontos insuficientes para " + perk_name + "!")
+	if multiplayer.multiplayer_peer and not multiplayer.is_server():
+		_request_interaction.rpc_id(1, obj.get_path())
+		return
+	_apply_interaction(obj)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _request_interaction(object_path: NodePath) -> void:
+	if not multiplayer.is_server() or player_state != PlayerState.ALIVE:
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender == 0:
+		sender = multiplayer.get_unique_id()
+	if sender != network_peer_id:
+		return
+	var obj := get_node_or_null(object_path) as Node3D
+	if obj and global_position.distance_to(obj.global_position) <= 3.0:
+		_apply_interaction(obj)
+
+
+func _apply_interaction(obj: Node3D) -> void:
+	if not ("perk_id" in obj):
+		return
+	var perk_id: String = obj.perk_id
+	var perk_name: String = obj.perk_name
+	var cost: int = obj.cost
+	if active_perks.has(perk_id):
+		show_notification("Voce ja tem %s." % perk_name)
+	elif points >= cost:
+		points -= cost
+		active_perks.append(perk_id)
+		if perk_id == "juggernog":
+			max_hp = 250.0
+			_set_health(max_hp)
+		show_notification("%s adquirido." % perk_name)
+	else:
+		show_notification("Pontos insuficientes para %s." % perk_name)
 
 
 func collect_powerup(powerup_type: String) -> void:
+	if multiplayer.multiplayer_peer:
+		if not multiplayer.is_server():
+			return
+		_apply_powerup(powerup_type)
+		if network_peer_id != 1:
+			_receive_powerup.rpc_id(network_peer_id, powerup_type)
+		return
+	_apply_powerup(powerup_type)
+
+
+@rpc("any_peer", "reliable")
+func _receive_powerup(powerup_type: String) -> void:
+	if multiplayer.get_remote_sender_id() != 1:
+		return
+	_apply_powerup(powerup_type)
+
+
+func _apply_powerup(powerup_type: String) -> void:
 	match powerup_type:
 		"max_ammo":
-			for w_id in inventory.keys():
-				if inventory[w_id]["unlocked"]:
-					inventory[w_id]["reserve"] = WEAPONS[w_id]["max_ammo"]
-			show_notification("MUNIÇÃO MÁXIMA!")
-			_update_hud()
-			
+			for ammo_type in MAX_AMMO_VALUES:
+				fps_hands.inventory["ammo"][ammo_type] = MAX_AMMO_VALUES[ammo_type]
+			fps_hands.update_inventory()
+			show_notification("MUNICAO MAXIMA")
 		"insta_kill":
 			insta_kill_timer = 30.0
-			show_notification("BAIXAS INSTANTÂNEAS!")
-			
+			show_notification("BAIXAS INSTANTANEAS")
 		"double_points":
 			double_points_timer = 30.0
-			show_notification("PONTOS DUPLOS!")
-			
+			show_notification("PONTOS DUPLOS")
 		"instant_money":
 			_add_points(500)
-			show_notification("DINHEIRO INSTANTÂNEO!")
-			
 		"nuke":
-			show_notification("BOMBA ATÔMICA!")
-			# Mata todos os zumbis ativos
-			var zombies = get_tree().get_nodes_in_group("zombies")
-			for z in zombies:
-				if z.has_method("take_damage") and not z.is_dead:
-					z.take_damage(999999.0)
-			# Bônus fixo de nuke
+			for zombie in get_tree().get_nodes_in_group("zombies"):
+				if zombie.has_method("take_damage") and not bool(zombie.get("is_dead")):
+					zombie.call("take_damage", 999999.0)
 			_add_points(400)
 
 
-func show_notification(msg: String) -> void:
-	if notify_label:
-		notify_label.text = msg
-		notify_timer = 2.5
-
-
-func _update_powerup_hud() -> void:
-	if not powerup_hud_label:
-		return
-		
-	var active_texts := []
-	if insta_kill_timer > 0.0:
-		active_texts.append("BAIXAS INSTANTÂNEAS: %.1fs" % insta_kill_timer)
-	if double_points_timer > 0.0:
-		active_texts.append("PONTOS DUPLOS: %.1fs" % double_points_timer)
-		
-	if active_texts.is_empty():
-		powerup_hud_label.text = ""
-	else:
-		powerup_hud_label.text = "\n".join(active_texts)
-
-
-func _update_interaction_hud() -> void:
-	if not interaction_label:
-		return
-		
-	if nearby_interactable:
-		var p_name = nearby_interactable.perk_name
-		var cost = nearby_interactable.cost
-		var p_id = nearby_interactable.perk_id
-		
-		if active_perks.has(p_id):
-			interaction_label.text = "[Comprado] %s" % p_name
-		else:
-			interaction_label.text = "Pressione [E] para comprar %s [%d pts]" % [p_name, cost]
-	else:
-		interaction_label.text = ""
+func show_notification(message: String) -> void:
+	print("[PLAYER] %s" % message)

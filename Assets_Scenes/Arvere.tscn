@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_trunk"]
+radius = 0.42
+height = 6.5
+
+[node name="TreeCollision" type="Node3D"]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+position = Vector3(0, 3.25, 0)
+shape = SubResource("CylinderShape3D_trunk")

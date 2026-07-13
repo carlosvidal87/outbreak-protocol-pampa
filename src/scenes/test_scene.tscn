@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://dnii0nvmexxyd"]
+
+[ext_resource type="PackedScene" uid="uid://6cwqf16vkxpr" path="res://src/scenes/character.tscn" id="1_char"]
+[ext_resource type="PackedScene" uid="uid://dpwxmtt55qr2" path="res://assets/characters/Zombies/zombie.tscn" id="2_vua8w"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+
+[sub_resource type="Sky" id="Sky_sky"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_env"]
+background_mode = 2
+sky = SubResource("Sky_sky")
+
+[node name="TestScene" type="Node3D" unique_id=1439297387]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1537853632]
+environment = SubResource("Environment_env")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1806117235]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Floor" type="CSGBox3D" parent="." unique_id=1262097120]
+use_collision = true
+size = Vector3(50, 1, 50)
+
+[node name="Character" parent="." unique_id=1321049150 instance=ExtResource("1_char")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="Zombie" parent="." unique_id=809245501 instance=ExtResource("2_vua8w")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6986945, 0.5022957, -1.5245214)

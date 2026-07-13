@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://boritiiyppc4j"]
+
+[ext_resource type="Texture2D" uid="uid://q6770h304hvy" path="res://addons/fps-hands/decals/bullethole/bullet_hole.png" id="1_wbedy"]
+
+[node name="Bullethole" type="Decal"]
+size = Vector3(0.075, 0.018, 0.075)
+texture_albedo = ExtResource("1_wbedy")
+upper_fade = 0.0
+lower_fade = 0.0
+normal_fade = 0.75
+distance_fade_enabled = true
+distance_fade_begin = 55.0
+distance_fade_length = 10.0

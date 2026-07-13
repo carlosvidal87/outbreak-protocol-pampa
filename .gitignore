@@ -3,6 +3,7 @@
 /android/
 .agents/
 .codex/
+*.log
 
 # ProjectGraph cache (auto-generated index)
 addons/project_graph/.cache/

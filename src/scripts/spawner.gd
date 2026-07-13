@@ -1,6 +1,6 @@
 extends Node3D
 
-const ZOMBIE_SCENE := preload("res://src/scenes/zombie.tscn")
+const ZOMBIE_SCENE := preload("res://assets/characters/Zombies/zombie.tscn")
 const SPAWN_RADIUS_MIN := 10.0
 const SPAWN_RADIUS_MAX := 20.0
 const MAX_CONCURRENT_ZOMBIES := 10
@@ -10,7 +10,6 @@ const ZOMBIE_DROPS_ENABLED := false
 
 var zombies_active := 0
 var kill_count := 0
-var kill_label: Label = null
 var spawn_timer: Timer = null
 
 
@@ -23,7 +22,6 @@ func _ready() -> void:
 	add_child(spawn_timer)
 
 	await NavigationServer3D.map_changed
-	_update_ui()
 	spawn_timer.start(INITIAL_SPAWN_DELAY)
 
 
@@ -58,7 +56,6 @@ func _spawn_zombie() -> void:
 func _on_zombie_died(death_pos: Vector3) -> void:
 	kill_count += 1
 	zombies_active = maxi(zombies_active - 1, 0)
-	_update_ui()
 
 	if ZOMBIE_DROPS_ENABLED and randf() < 0.12:
 		_spawn_powerup_at(death_pos)
@@ -89,15 +86,3 @@ func _snap_position_to_ground(pos: Vector3) -> Vector3:
 		return pos
 	var hit_position: Vector3 = hit["position"]
 	return hit_position + Vector3.UP * 0.05
-
-
-func _update_ui() -> void:
-	if not kill_label:
-		var players = get_tree().get_nodes_in_group("player")
-		if players.size() > 0:
-			var hud = players[0].get_node_or_null("HUD")
-			if hud:
-				kill_label = hud.get_node_or_null("KillCounter")
-
-	if kill_label:
-		kill_label.text = "KILLS: %d" % kill_count

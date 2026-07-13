@@ -9,6 +9,7 @@ var graphics_menu: Control = null
 var graphics_return_menu := "pause"
 var menu_preview_root: Node = null
 var is_changing_scene := false
+var local_pause_active := false
 
 
 func _init() -> void:
@@ -58,7 +59,10 @@ func pause_game() -> void:
 	if not pause_enabled or is_changing_scene:
 		return
 
-	get_tree().paused = true
+	local_pause_active = true
+	if not _is_network_game():
+		get_tree().paused = true
+	_set_local_player_input_blocked(true)
 	if pause_menu:
 		pause_menu.visible = true
 	if graphics_menu:
@@ -70,7 +74,10 @@ func resume_game() -> void:
 	if is_changing_scene:
 		return
 
-	get_tree().paused = false
+	local_pause_active = false
+	if not _is_network_game():
+		get_tree().paused = false
+	_set_local_player_input_blocked(false)
 	if pause_menu:
 		pause_menu.visible = false
 	if graphics_menu:
@@ -103,12 +110,15 @@ func _on_graphics_menu_closed() -> void:
 	if is_changing_scene or not is_inside_tree():
 		return
 
-	if graphics_return_menu == "pause" and pause_enabled and get_tree().paused and pause_menu:
+	if graphics_return_menu == "pause" and pause_enabled and local_pause_active and pause_menu:
 		pause_menu.visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _on_restart_pressed() -> void:
+	if _is_network_game():
+		resume_game()
+		return
 	is_changing_scene = true
 	_hide_all_menus()
 	get_tree().paused = false
@@ -119,6 +129,8 @@ func _on_menu_pressed() -> void:
 	is_changing_scene = true
 	_hide_all_menus()
 	get_tree().paused = false
+	if multiplayer.multiplayer_peer:
+		NetworkManager.leave_session("Voce saiu da partida.")
 	get_tree().change_scene_to_file("res://src/scenes/main_menu.tscn")
 
 
@@ -132,6 +144,19 @@ func _hide_all_menus() -> void:
 		pause_menu.visible = false
 	if graphics_menu:
 		graphics_menu.visible = false
+
+
+func _is_network_game() -> bool:
+	return multiplayer.multiplayer_peer != null and NetworkManager.state == NetworkManager.SessionState.PLAYING
+
+
+func _set_local_player_input_blocked(blocked: bool) -> void:
+	var current: Node = get_parent()
+	while current:
+		if current.is_in_group("player"):
+			current.set("local_input_blocked", blocked)
+			return
+		current = current.get_parent()
 
 
 func _create_pause_menu() -> void:

@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/tests/projectile_collision_test.gd" id="1_test"]
+
+[sub_resource type="BoxShape3D" id="BoxShape_wall"]
+size = Vector3(4, 4, 0.2)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_shooter"]
+
+[node name="ProjectileCollisionTest" type="Node3D"]
+script = ExtResource("1_test")
+
+[node name="Shooter" type="CharacterBody3D" parent="."]
+position = Vector3(0, 1, 1.5)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Shooter"]
+shape = SubResource("CapsuleShape_shooter")
+
+[node name="Wall" type="StaticBody3D" parent="."]
+position = Vector3(0, 1, -4)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Wall"]
+shape = SubResource("BoxShape_wall")

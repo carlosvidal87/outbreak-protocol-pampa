@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/tests/fps_hands_smoke_test.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://src/scenes/character.tscn" id="2_character"]
+
+[node name="FPSHandsSmokeTest" type="Node"]
+script = ExtResource("1_script")
+
+[node name="CharacterBody3D" parent="." instance=ExtResource("2_character")]

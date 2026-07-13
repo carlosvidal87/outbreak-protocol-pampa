@@ -2,8 +2,8 @@ extends Node3D
 
 signal startup_ready
 
-const NAV_EXTENT := 260.0
-const NAV_STEP := 8.0
+const NAV_EXTENT := 310.0
+const NAV_STEP := 6.0
 const NAV_RAY_TOP := 220.0
 const NAV_RAY_BOTTOM := -260.0
 const NAV_SURFACE_OFFSET := 0.05
@@ -116,7 +116,6 @@ func _ready() -> void:
 		await get_tree().physics_frame
 
 	await _ensure_navigation_ready()
-	_setup_spawner()
 
 	for _frame in range(STARTUP_READY_FRAMES):
 		await get_tree().physics_frame
@@ -162,7 +161,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _ensure_navigation_ready() -> void:
 	var nav_region := _get_navigation_region()
-	if nav_region and nav_region.navigation_mesh:
+	if nav_region and nav_region.navigation_mesh and nav_region.navigation_mesh.get_polygon_count() > 0:
 		print("[MAP] Usando NavigationRegion3D pre-assada.")
 		await get_tree().physics_frame
 		return
@@ -191,7 +190,7 @@ func _build_navigation_fallback() -> void:
 		nav_region.name = PREBAKED_NAV_REGION_NAME
 		add_child(nav_region)
 
-	var nav_mesh := NavigationMesh.new()
+	var nav_mesh := nav_region.navigation_mesh if nav_region.navigation_mesh else NavigationMesh.new()
 	var vertices := PackedVector3Array()
 	var heights: Array[float] = []
 	var points_per_axis := int((NAV_EXTENT * 2.0) / NAV_STEP) + 1
@@ -253,9 +252,21 @@ func _sample_ground_height(pos: Vector3, excludes: Array[RID]) -> float:
 	var hit: Dictionary = space.intersect_ray(query)
 	if hit.is_empty():
 		return INF
+	var collider := hit.get("collider") as Node
+	if not _is_terrain_collider(collider):
+		return INF
 
 	var hit_position: Vector3 = hit["position"]
 	return hit_position.y
+
+
+func _is_terrain_collider(collider: Node) -> bool:
+	var current := collider
+	while current:
+		if current.name == "HTerrain":
+			return true
+		current = current.get_parent()
+	return false
 
 
 func _get_navigation_raycast_excludes() -> Array[RID]:
@@ -266,19 +277,13 @@ func _get_navigation_raycast_excludes() -> Array[RID]:
 	return excludes
 
 
-func _setup_spawner() -> void:
-	if get_node_or_null("Spawner"):
-		return
-
-	var spawner := Node3D.new()
-	spawner.name = "Spawner"
-	spawner.set_script(preload("res://src/scripts/spawner.gd"))
-	add_child(spawner)
-
-
 func _cache_lighting_nodes() -> void:
 	world_environment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 	directional_light = get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if not world_environment:
+		world_environment = find_child("WorldEnvironment", true, false) as WorldEnvironment
+	if not directional_light:
+		directional_light = find_child("DirectionalLight3D", true, false) as DirectionalLight3D
 
 
 func _connect_graphics_settings() -> void:

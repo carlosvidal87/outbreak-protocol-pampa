@@ -1,8 +1,6 @@
 extends RefCounted
 
 const DEFAULT_ANIM_LIBRARY := "pistol"
-const DEFAULT_RIGHT_HAND_BONE := "mixamorig:RightHand"
-const DEFAULT_PISTOL_PATH := "res://assets/weapons/blaster-a.glb"
 
 
 static func setup_pistol_animation_library(
@@ -59,46 +57,6 @@ static func play_animation(anim_player: AnimationPlayer, library_name: String, s
 
 	anim_player.play(anim_name, blend)
 	return true
-
-
-static func attach_pistol_to_hand(
-	soldier_model: Node,
-	bone_name := DEFAULT_RIGHT_HAND_BONE,
-	pistol_path := DEFAULT_PISTOL_PATH,
-	offset := Vector3.ZERO,
-	rotation := Vector3.ZERO,
-	scale := Vector3.ONE
-) -> Dictionary:
-	var skeleton := find_skeleton(soldier_model)
-	if not skeleton:
-		push_warning("Soldier sem Skeleton3D. Pistola terceira pessoa nao foi anexada.")
-		return {"ok": false, "attachment": null, "pistol": null}
-
-	var resolved_bone_name := resolve_bone_name(skeleton, bone_name)
-	if resolved_bone_name.is_empty():
-		push_warning("Osso da mao direita nao encontrado no Soldier: %s" % bone_name)
-		return {"ok": false, "attachment": null, "pistol": null}
-
-	var attachment := BoneAttachment3D.new()
-	attachment.name = "ThirdPersonPistolAttachment"
-	attachment.bone_name = resolved_bone_name
-	skeleton.add_child(attachment)
-
-	var packed_scene := load(pistol_path) as PackedScene
-	if not packed_scene:
-		push_warning("Modelo da pistola terceira pessoa nao carregou: %s" % pistol_path)
-		return {"ok": false, "attachment": attachment, "pistol": null}
-
-	var pistol := packed_scene.instantiate() as Node3D
-	if not pistol:
-		push_warning("Modelo da pistola terceira pessoa nao e Node3D: %s" % pistol_path)
-		return {"ok": false, "attachment": attachment, "pistol": null}
-
-	attachment.add_child(pistol)
-	pistol.position = offset
-	pistol.rotation = rotation
-	pistol.scale = scale
-	return {"ok": true, "attachment": attachment, "pistol": pistol}
 
 
 static func find_animation_player(root: Node) -> AnimationPlayer:
@@ -172,8 +130,9 @@ static func load_first_animation_from_scene(path: String) -> Animation:
 		if String(anim_name) == "RESET":
 			continue
 		var animation := source_player.get_animation(anim_name)
+		var duplicated_animation := animation.duplicate(true) as Animation
 		scene.free()
-		return animation.duplicate(true) as Animation
+		return duplicated_animation
 
 	scene.free()
 	return null

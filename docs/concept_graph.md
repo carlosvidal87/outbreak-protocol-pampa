@@ -41,7 +41,7 @@ Pontos centrais reais:
 | Cena principal / GameManager | `src/scenes/node_3d.tscn`, `src/scripts/node_3d.gd` | Implementado | Monta arena, navmesh plana, spawner e maquinas de perk |
 | Player / FPS | `src/scenes/character.tscn`, `src/scripts/character.gd` | Implementado e concentrado | Movimento, camera, vida, tiro, recarga, melee, pontos, HUD |
 | Dual model / Soldier | `character.tscn`, `character.gd`, `assets/characters/Soldier/**` | Parcial | Soldier visual em 3P/remoto, animacoes pistol, pistola 3P na mao |
-| Armas | `character.gd`, `assets/weapons/blaster-a.glb`, `blaster-d.glb`, `blaster-h.glb`, `assets/sounds/*.mp3` | Implementado no player | Dados de arma, compra, troca, ammo, dano, audio |
+| Armas | `addons/fps-hands`, `character.gd` | FPS Hands integrado ao player | Seis armas, troca, munição, dano, animações, áudio e efeitos |
 | Inimigos | `src/scenes/zombie.tscn`, `src/scripts/zombie.gd`, `head_hitbox.gd`, `limb_hitbox.gd` | Implementado | IA, escala por round, ataque, dano, hitboxes, morte |
 | Rounds / spawn | `src/scripts/spawner.gd` | Implementado | Rounds, spawn, limite simultaneo, kills, drops |
 | Perks | `src/scripts/perk_machine.gd`, `node_3d.gd`, `character.gd` | Implementado | Maquinas compraveis e efeitos no player |
@@ -78,7 +78,7 @@ graph TD
     Perk["perk_machine.gd<br/>maquinas"]
     Powerup["powerup.gd<br/>drops"]
     HUD["HUD em character.tscn"]
-    WeaponAssets["assets/weapons + assets/sounds"]
+    WeaponAssets["addons/fps-hands"]
     WorldAssets["assets/roads + assets/city"]
     Groups["Godot groups<br/>player, zombies, enemies"]
     GraphAddon["addons/project_graph<br/>grafo editor/cache"]
@@ -222,7 +222,7 @@ sequenceDiagram
 
 | Script | Heranca | Classe nomeada | Nos/referencias importantes |
 |---|---|---|---|
-| `character.gd` | `CharacterBody3D` | Nenhuma | `$Camera3D`, `$ThirdPersonCameraPivot/ThirdPersonCamera3D`, `$Ch35_nonPBR`, `$Camera3D/RayCast3D`, `$HUD/*`, grupo `player` |
+| `character.gd` | `CharacterBody3D` | FPS Hands | `$Camera3D`, `$Camera3D/FPSHands`, `$Ch35_nonPBR`, `$MenuLayer`, grupo `player` |
 | `main_menu.gd` | `Control` | Nenhuma | `SubViewportContainer`, `SubViewport`, `Menu3DWorld`, Soldier, `menu_controller.gd` |
 | `menu_controller.gd` | `Control` | Nenhuma | Pause/graficos criados por codigo, `Viewport`, `SceneTree.paused`, `ConfigFile` |
 | `soldier_visual_helper.gd` | `RefCounted` | Nenhuma | `AnimationPlayer`, `Skeleton3D`, `BoneAttachment3D` |
@@ -246,7 +246,7 @@ Estado atual do player:
 - Colisao oficial: `CollisionShape3D` capsula em `character.tscn`.
 - Visual 3P/remoto: instancia `Ch35_nonPBR` dentro do `CharacterBody3D`.
 - Camera FPS: `$Camera3D`, com `RayCast3D`, `MuzzleFlash`, `Flashlight` e arma FPS.
-- Camera 3P: `$ThirdPersonCameraPivot/ThirdPersonCamera3D`, alternada por `F3`.
+- A câmera local usa `$Camera3D/FPSHands`; o modo local em terceira pessoa foi removido.
 - Animacoes do Soldier: carregadas em runtime de `assets/characters/Soldier/Pistol Animation/`.
 - Root motion horizontal: `character.gd` zera tracks de posicao root/`mixamorig:Hips` ao duplicar as animacoes.
 - Pistola 3P: `character.gd` cria `BoneAttachment3D` no osso `mixamorig:RightHand` e instancia `blaster-a.glb`.
@@ -271,7 +271,7 @@ Limites atuais:
 | `Area3D.body_entered` | `powerup.gd` | `_on_body_entered` | Connect interno | Chama `collect_powerup(type)` no player |
 | `Button.pressed` | Botao PLAY do menu inicial | `main_menu.gd` | Connect interno | Carrega `node_3d.tscn` |
 | `Button.pressed` | Botoes de pause/graficos | `menu_controller.gd` | Connect interno | Pausa, reinicia, volta ao menu, troca graficos ou sai |
-| Input `F3` | Jogador local | `character.gd` | `_unhandled_input` | Alterna FPS/terceira pessoa |
+| Inputs `1` a `6`, roda do mouse | Jogador local | `character.gd` e `fps-hands.gd` | seleção de arma | Alterna as seis armas do addon |
 | Input `F5` | Debug | `spawner.gd` | `_unhandled_input` | Pula para round 10 |
 
 ## 9. Recursos Compartilhados
@@ -280,8 +280,7 @@ Usados diretamente pelo gameplay:
 
 - Soldier: `assets/characters/Soldier/Ch35_nonPBR.fbx`
 - Animacoes pistol: `pistol idle.fbx`, `pistol walk.fbx`, `pistol run.fbx`, `pistol strafe.fbx`, `pistol jump.fbx`
-- Armas: `assets/weapons/blaster-a.glb`, `assets/weapons/blaster-d.glb`, `assets/weapons/blaster-h.glb`
-- Sons: `assets/sounds/pistol-shot.mp3`, `pistol-reload.mp3`, `assalt-shot.mp3`, `assalt-reload.mp3`, `shotgun-shot.mp3`, `shotgun-reload.mp3`
+- Armas, braços, animações e sons: `addons/fps-hands`
 - Cenario: `assets/roads/road-straight.glb`, `assets/roads/road-crossroad.glb`, `assets/city/building-a.glb`, `assets/city/building-g.glb`
 - Zumbi low poly: modelo montado em `zombie.tscn`, com textura referenciada quebrada no caminho atual.
 
@@ -293,7 +292,7 @@ Usados como dados persistentes:
 ## 10. Gargalos, Acoplamentos e Pontos de Risco
 
 1. `character.gd` concentra sistemas demais. Uma mudanca pequena em camera, arma, HUD, perk ou powerup pode gerar regressao em outra area.
-2. O player usa muitos caminhos rigidos de node, como `$HUD/AmmoLabel` e `$Camera3D/RayCast3D`. Renomear nodes quebra runtime.
+2. O player depende dos pontos de integração `$Camera3D/FPSHands` e `$MenuLayer`; renomeá-los quebra o runtime.
 3. O HUD pertence ao player. Em multiplayer real, `spawner.gd` atualizar o HUD do primeiro player do grupo nao escala.
 4. `spawner.gd`, `zombie.gd`, `perk_machine.gd` e `powerup.gd` comunicam com player por grupos e `has_method`. Isso e rapido para prototipo, mas fraco como contrato.
 5. A navmesh e um plano gigante criado por codigo. Zumbis nao respeitam obstaculos reais do mapa.
@@ -316,7 +315,7 @@ Cenas sem dependente encontrado:
 Pacotes/diretorios sem referencia pela cena principal atual:
 
 - `assets/teste-terreno/**`, contem outro projeto Godot e addon HTerrain.
-- A maioria de `assets/weapons/*.glb`, exceto `blaster-a`, `blaster-d`, `blaster-h`.
+- Assets de armas anteriores foram substituídos pelo addon `fps-hands`.
 - A maioria de `assets/roads/*.glb`, exceto `road-straight` e `road-crossroad`.
 - A maioria de `assets/city/*.glb`, exceto `building-a` e `building-g`.
 - Muitos arquivos `assets/characters/Low Poly/**`, exceto uso indireto provavel para corrigir textura/modelo quebrados.
@@ -374,9 +373,9 @@ Ciclos de runtime relevantes:
 
 ## 15. Roteiro de Navegacao Para Futuras Tarefas
 
-- Bug de movimento, camera, dual model, Soldier, animacao pistol ou F3: comece em `src/scripts/character.gd`, depois `src/scenes/character.tscn`.
+- Bug de movimento ou câmera: comece em `src/scripts/character.gd`; arma ou animação: comece em `addons/fps-hands/fps-hands.gd` e na cena da arma.
 - Bug de tiro, recoil, raycast, dano, recarga, ammo ou melee: comece em `src/scripts/character.gd`; se envolver hitbox, abra `zombie.tscn`, `head_hitbox.gd` e `limb_hitbox.gd`.
-- Bug de compra de arma: comece em `character.gd`, constantes `WEAPONS`, `_try_buy_weapon()` e `equip_weapon()`.
+- Bugs de arma, munição ou troca: comece em `addons/fps-hands/fps-hands.gd` e no adaptador de dano em `character.gd`.
 - Bug de zumbi, perseguicao, ataque, morte ou animacao: comece em `src/scripts/zombie.gd`, depois `src/scenes/zombie.tscn`.
 - Bug de spawn, rounds, contador de kills, F5 ou powerup drop: comece em `src/scripts/spawner.gd`.
 - Bug de perk/interacao: comece em `src/scripts/perk_machine.gd`, depois `character.gd::_interact_with()`.

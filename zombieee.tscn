@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://b8lskm1dabxo0"]
+
+[ext_resource type="PackedScene" uid="uid://c8twe81yumts8" path="res://assets/characters/Zombies/Ch10_nonPBR.fbx" id="1_b6mc7"]
+
+[node name="Ch10_nonPBR" unique_id=760480064 instance=ExtResource("1_b6mc7")]

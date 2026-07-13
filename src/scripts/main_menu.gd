@@ -6,6 +6,7 @@ const MenuControllerScript = preload("res://src/scripts/menu_controller.gd")
 const GAME_TITLE := "OUTBREAK PROTOCOL: PAMPA"
 const MAP_NAME := "ESTANCIA QUEIMADA"
 const LOADING_SCENE := "res://src/scenes/loading_screen.tscn"
+const MULTIPLAYER_LOBBY_SCENE := "res://src/scenes/multiplayer_lobby.tscn"
 const LOGO_TEXTURE_PATH := "res://assets/ui/game-logo.png"
 const MAP_LOGO_TEXTURE_PATH := "res://assets/ui/map-logo.png"
 const BACKGROUND_TEXTURE_PATH := "res://assets/ui/Menu-background.png"
@@ -54,10 +55,31 @@ func _ready() -> void:
 	_create_3d_viewport()
 	_create_ui_layer()
 	_create_graphics_controller()
+	_show_network_message()
 	GraphicsSettings.apply_to_viewport(get_viewport())
 	GraphicsSettings.apply_to_menu_preview(menu_preview_root)
 	_keep_menu_preview_live()
 	_play_menu_fade_in()
+
+
+func _show_network_message() -> void:
+	if NetworkManager.last_message.is_empty():
+		return
+	var message := Label.new()
+	message.name = "NetworkMessage"
+	message.anchor_left = 0.5
+	message.anchor_right = 0.5
+	message.offset_left = -310.0
+	message.offset_top = 96.0
+	message.offset_right = 310.0
+	message.offset_bottom = 142.0
+	message.text = NetworkManager.last_message
+	message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_color_override("font_color", Color(1.0, 0.46, 0.36))
+	message.add_theme_font_size_override("font_size", 16)
+	add_child(message)
+	NetworkManager.last_message = ""
 
 
 func _create_background_layer() -> void:
@@ -371,7 +393,7 @@ func _create_right_mode_cards(parent: Control) -> void:
 	margin.add_child(column)
 
 	_create_mode_card(column, "SOLO", MAP_NAME, "Mapa atual", true)
-	_create_mode_card(column, "COOP", "EM BREVE", "Preparado para expansão", false)
+	_create_mode_card(column, "COOP", "RADMIN VPN", "1-4 jogadores", false)
 
 
 func _create_mode_card(parent: BoxContainer, mode: String, region: String, detail: String, active: bool) -> void:
@@ -543,7 +565,7 @@ func _on_play_pressed() -> void:
 	is_starting_game = true
 	get_tree().paused = false
 	await _fade_screen_to_black(0.24)
-	get_tree().change_scene_to_file(LOADING_SCENE)
+	get_tree().change_scene_to_file(MULTIPLAYER_LOBBY_SCENE if selected_mode == "coop" else LOADING_SCENE)
 
 
 func _on_mode_card_input(event: InputEvent, mode: String) -> void:
