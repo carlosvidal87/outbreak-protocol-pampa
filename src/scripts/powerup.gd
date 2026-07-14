@@ -2,7 +2,7 @@ extends Node3D
 
 ## Powerup — Item flutuante, rotativo e brilhante que concede bônus temporários ou instantâneos.
 
-@export var type : String = "max_ammo" # max_ammo, insta_kill, double_points, nuke
+@export var type : String = "max_ammo" # max_ammo, insta_kill, nuke
 
 var time := 0.0
 var lifespan := 30.0
@@ -18,9 +18,7 @@ func _ready() -> void:
 	match type:
 		"max_ammo":      powerup_color = Color(0.1, 0.9, 0.1)  # Verde brilhante
 		"insta_kill":    powerup_color = Color(0.9, 0.1, 0.1)  # Vermelho
-		"double_points": powerup_color = Color(0.9, 0.8, 0.1)  # Amarelo/Dourado
 		"nuke":          powerup_color = Color(0.9, 0.4, 0.0)  # Laranja
-		"instant_money": powerup_color = Color(0.1, 0.6, 0.1)  # Verde escuro
 
 	# 1. Criação do visual do item (MeshInstance3D com BoxMesh rotacionado para parecer um losango/joia)
 	mesh_inst = MeshInstance3D.new()

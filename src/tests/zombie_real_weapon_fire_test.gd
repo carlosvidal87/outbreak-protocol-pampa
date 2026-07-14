@@ -1,7 +1,7 @@
 extends Node3D
 
 const CHARACTER_SCENE := preload("res://src/scenes/character.tscn")
-const ZOMBIE_SCENE := preload("res://src/scenes/zombie.tscn")
+const ZOMBIE_SCENE := preload("res://assets/characters/Zombies/zombie.tscn")
 
 
 func _ready() -> void:

@@ -149,10 +149,7 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
-		var is_day_night_toggle := (
-			key_event.physical_keycode == KEY_F8
-			or key_event.physical_keycode == KEY_L
-		)
+		var is_day_night_toggle := key_event.physical_keycode == KEY_F8
 		if key_event.pressed and not key_event.echo and is_day_night_toggle:
 			is_night = not is_night
 			_apply_night_state(is_night)

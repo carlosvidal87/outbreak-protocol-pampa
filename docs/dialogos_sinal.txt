@@ -1,0 +1,198 @@
+OUTBREAK PROTOCOL: PAMPA
+CATÁLOGO DE FALAS DA SINAL
+
+============================================================
+DIREÇÃO VOCAL GLOBAL
+============================================================
+
+Voz: homem brasileiro entre 40 e 50 anos, média-grave, firme e experiente.
+Estado emocional: cansado, atento e sempre sob controle.
+Sotaque: gaúcho discreto e natural, sem caricatura.
+Ritmo: comunicação operacional por rádio, com frases curtas e pausas precisas.
+Interpretação: não soar como narrador, locutor ou personagem de ação. O contato fala
+com alguém que está em perigo real. Ele sabe mais do que revela e mede as palavras.
+Urgência: nunca gritar. Aumentar a velocidade e a firmeza quando a situação piorar.
+Processamento: gerar primeiro a voz limpa. Aplicar compressão leve e efeito de rádio
+somente na pós-produção. Não adicionar música, ruído forte ou chiado na voz original.
+
+PRONÚNCIAS
+- SINAL: pronunciar como a palavra "sinal", com ênfase natural na última sílaba.
+- Ruptura: "rup-TU-ra".
+- Pampa: "PÂM-pa".
+- Açude: "a-SU-de".
+- Estância: "es-TÂN-cia".
+
+OBSERVAÇÃO PARA A IA DE VOZ
+Ler somente o conteúdo entre aspas depois de FALA. Os campos GATILHO e
+INTERPRETAÇÃO são instruções e não fazem parte do áudio.
+
+============================================================
+BRIEFING E ENTRADA NO MAPA
+============================================================
+
+[RADIO_01_BRIEFING]
+GATILHO: início da missão, antes de o jogador assumir o controle
+INTERPRETAÇÃO: [voz baixa e firme; ritmo controlado; preocupação contida; pequena pausa depois de "silêncio"]
+FALA: "Agente, aqui é o controle da SINAL. A região está em silêncio há seis dias. Entre, encontre o acampamento da primeira expedição e descubra por que eles pararam de transmitir."
+
+[RADIO_02_ENTRADA]
+GATILHO: jogador assume o controle no campo aberto
+INTERPRETAÇÃO: [tom operacional; atento; leve sotaque gaúcho; sem pressa excessiva]
+FALA: "A estância abandonada fica adiante, depois da linha de árvores. Siga com cuidado. Neste campo, qualquer barulho viaja longe."
+
+============================================================
+TUTORIAL NARRATIVO
+============================================================
+
+[RADIO_03_MOVIMENTO]
+GATILHO: primeiros metros de exploração
+INTERPRETAÇÃO: [conselho de alguém experiente; firme; ritmo moderado]
+FALA: "Não te aperta, Agente. Observe o terreno antes de avançar. Campo aberto parece seguro até deixar de ser."
+
+[RADIO_04_BARULHO]
+GATILHO: primeiro disparo ou primeiro grupo alertado
+INTERPRETAÇÃO: [alerta imediato; ritmo um pouco mais rápido; sem elevar muito o volume]
+FALA: "Eles ouviram o tiro. Derrube o que estiver perto e saia daí antes que o resto cerque você."
+
+[RADIO_05_COMBATE]
+GATILHO: primeiro inimigo isolado em curta distância
+INTERPRETAÇÃO: [tom baixo e tático; segurança contida]
+FALA: "Se encontrar um deles sozinho, preserve munição. Ataque rápido, recue e confirme que caiu."
+
+============================================================
+FAZENDA E PRIMEIRA EXPEDIÇÃO
+============================================================
+
+[RADIO_06_FAZENDA_AVISTA]
+GATILHO: fazenda ou estância entra no campo de visão do jogador
+INTERPRETAÇÃO: [foco renovado; instrução clara; leve cautela]
+FALA: "Estou recebendo um sinal fraco vindo da fazenda. Procure o rádio da expedição, deve estar perto da construção principal."
+
+[RADIO_07_FAZENDA_ENTRADA]
+GATILHO: entrada na área da fazenda
+INTERPRETAÇÃO: [voz mais baixa; desconforto discreto; pausa curta antes da segunda frase]
+FALA: "Esse lugar foi abandonado depressa... mas o acampamento não mostra sinais de retirada. Fica esperto."
+
+[RADIO_08_EXPEDICAO]
+GATILHO: descoberta dos dados ou rádio da primeira expedição
+INTERPRETAÇÃO: [surpresa reprimida; ler a última frase mais devagar; não dramatizar]
+FALA: "Registro recuperado. A equipe operou por três dias depois da ordem de evacuação. Eles não perderam o rádio... escolheram desligá-lo."
+
+============================================================
+AÇUDE
+============================================================
+
+[RADIO_09_ACUDE]
+GATILHO: aproximação do açude
+INTERPRETAÇÃO: [tom técnico; inquietação contida; pausa curta depois de "água"]
+FALA: "Os sensores estão reagindo à água... mais do que deveriam. Não entre no açude. Contorne pela margem e mantenha distância."
+
+[RADIO_10_ACUDE_LEITURA]
+GATILHO: jogador alcança o ponto de leitura próximo ao açude
+INTERPRETAÇÃO: [concentração; revelação parcial; ênfase discreta em "industrial"]
+FALA: "A leitura aponta para o complexo industrial. Seja o que for que alterou essa água, passou primeiro pelos galpões."
+
+============================================================
+COMPLEXO INDUSTRIAL
+============================================================
+
+[RADIO_11_INDUSTRIAL_AVISTA]
+GATILHO: complexo industrial entra no campo de visão
+INTERPRETAÇÃO: [objetivo claro; voz firme; ritmo operacional]
+FALA: "Ali está o complexo. O dispositivo de monitoramento deve estar no setor interno. Encontre uma entrada e não fique exposto na estrada."
+
+[RADIO_12_INDUSTRIAL_ENTRADA]
+GATILHO: entrada na área industrial
+INTERPRETAÇÃO: [tensão crescente; ritmo ligeiramente mais rápido; sem gritar]
+FALA: "Interferência aumentando. A estrutura pode cortar nosso contato. Se o rádio cair, continue procurando o equipamento."
+
+[RADIO_13_DISPOSITIVO]
+GATILHO: dispositivo de monitoramento localizado
+INTERPRETAÇÃO: [alívio breve que vira apreensão; pausa antes de "Tem mais"]
+FALA: "Achou. Mantenha o dispositivo ligado enquanto eu extraio os dados... Tem mais alguém acessando o sistema."
+
+[RADIO_14_REVELACAO]
+GATILHO: extração dos dados concluída
+INTERPRETAÇÃO: [choque contido; voz mais lenta; peso na última frase]
+FALA: "Essas leituras começaram antes dos primeiros tremores. A Ruptura não foi um acidente. Alguém ativou alguma coisa sob esta região."
+
+============================================================
+APROXIMAÇÃO DA FONTE
+============================================================
+
+[RADIO_15_FONTE_DIRECAO]
+GATILHO: dados revelam a direção da fonte
+INTERPRETAÇÃO: [decisão difícil; firme; pequena hesitação antes da orientação]
+FALA: "O sinal converge além do complexo. É a fonte, Agente. Capaz de encontrarmos lá a resposta que ninguém queria dar."
+
+[RADIO_16_FONTE_PROXIMA]
+GATILHO: aproximação da área final
+INTERPRETAÇÃO: [voz baixa; tensão máxima controlada; pausas naturais; quase confidencial]
+FALA: "A telemetria está falhando... e a atividade ao seu redor está subindo. Daqui em diante, confie nos seus olhos. Eu aviso se ainda conseguir."
+
+============================================================
+JOGADOR OU ALIADO CAÍDO
+============================================================
+
+[RADIO_17_AGENTE_CAIDO]
+GATILHO: jogador local entra no estado caído e ainda possui aliados vivos
+INTERPRETAÇÃO: [urgente; firme; ritmo rápido; transmitir esperança sem suavizar o perigo]
+FALA: "Agente caído. Aguente firme. Sua equipe ainda pode chegar até você."
+
+[RADIO_18_ALIADO_CAIDO]
+GATILHO: um aliado cai perto de outro jogador
+INTERPRETAÇÃO: [comando direto; urgente; sem gritar]
+FALA: "Um dos seus caiu. Limpe a área antes de levantar ele, ou vocês dois ficam por lá."
+
+============================================================
+ENCERRAMENTOS
+============================================================
+
+[RADIO_19_SUCESSO]
+GATILHO: objetivo concluído e equipe em segurança
+INTERPRETAÇÃO: [alívio contido; respeito; última frase mais baixa, sugerindo segredo]
+FALA: "Dados confirmados. Missão cumprida, Agente. Volte inteiro... depois conversamos sobre o que a SINAL já sabia."
+
+[RADIO_20_DERROTA]
+GATILHO: todos os jogadores mortos ou fora de combate
+INTERPRETAÇÃO: [voz baixa; pesar profissional; ritmo lento; encerrar sem melodrama]
+FALA: "Equipe sem resposta. Encerrando a operação... e registrando a região como perdida."
+
+============================================================
+DICAS DE HUD — NÃO GERAR ÁUDIO
+============================================================
+
+Estas mensagens aparecem apenas na interface. Não devem ser lidas pela voz da SINAL.
+
+[HUD_01_MOVIMENTO]
+Use W, A, S e D para se mover. Segure Shift para correr.
+
+[HUD_02_SALTO]
+Pressione Espaço para saltar.
+
+[HUD_03_LANTERNA]
+Pressione F para ligar ou desligar a lanterna.
+
+[HUD_04_COMBATE]
+Botão esquerdo dispara. Botão direito mira.
+
+[HUD_05_RECARGA]
+Pressione R para recarregar.
+
+[HUD_06_CORPO_A_CORPO]
+Use o ataque corpo a corpo contra inimigos isolados e próximos.
+
+[HUD_07_TROCA_ARMA]
+Use a roda do mouse ou as teclas numéricas para trocar de arma.
+
+[HUD_08_INTERACAO]
+Pressione E para interagir.
+
+[HUD_09_VIDA]
+Sua vida não regenera sozinha. Evite dano e procure recursos de cura.
+
+[HUD_10_REVIVER]
+Segure E perto de um aliado caído para reanimá-lo.
+
+[HUD_11_PLACAR]
+Segure Tab para ver os jogadores da partida.

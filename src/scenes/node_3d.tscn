@@ -1,44 +1,94 @@
-[gd_scene load_steps=6 format=3 uid="uid://b12r55uukjmdo"]
+[gd_scene format=3 uid="uid://b12r55uukjmdo"]
 
-[ext_resource type="PackedScene" path="res://src/scenes/map_xandy_content.tscn" id="1_map"]
+[ext_resource type="PackedScene" uid="uid://chp71marpcdlm" path="res://src/scenes/map_xandy_content.tscn" id="1_map"]
 [ext_resource type="Script" uid="uid://dl6u75sdvlol4" path="res://src/scripts/node_3d.gd" id="2_gameplay"]
 [ext_resource type="Script" uid="uid://d31cso3xrvh6b" path="res://src/scripts/zombie_director.gd" id="3_zombie_director"]
 [ext_resource type="NavigationMesh" path="res://assets/terrain/outdoor_navigation_mesh.tres" id="4_outdoor_nav"]
-[ext_resource type="Script" path="res://src/scripts/game_session.gd" id="5_game_session"]
+[ext_resource type="Script" uid="uid://bxqigsthh5jno" path="res://src/scripts/game_session.gd" id="5_game_session"]
+[ext_resource type="PackedScene" path="res://src/scenes/fragmento.tscn" id="6_3mso2"]
+[ext_resource type="PackedScene" path="res://src/scenes/fragmento_2.tscn" id="7_644tv"]
+[ext_resource type="PackedScene" uid="uid://bdrtewvablaby" path="res://assets/materials/workbench.glb" id="8_vdgck"]
+[ext_resource type="PackedScene" path="res://src/scenes/workbench_interaction.tscn" id="9_workbench"]
+[ext_resource type="AudioStream" path="res://assets/sounds/horror_sfx_vol_1 (1)/Ambient/Ambient Wind (5).mp3" id="10_ambient_wind"]
+[ext_resource type="Script" path="res://src/scripts/looping_audio_player.gd" id="11_audio_loop"]
 
-[node name="Node3D" type="Node3D"]
+[node name="Node3D" type="Node3D" unique_id=1149959057]
 script = ExtResource("2_gameplay")
 
-[node name="MapContent" parent="." instance=ExtResource("1_map")]
+[node name="AmbientWind" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("10_ambient_wind")
+volume_db = -20.0
+autoplay = true
+script = ExtResource("11_audio_loop")
 
-[node name="TerrainNavigationRegion" type="NavigationRegion3D" parent="."]
+[node name="MapContent" parent="." unique_id=1946173116 instance=ExtResource("1_map")]
+
+[node name="TerrainNavigationRegion" type="NavigationRegion3D" parent="." unique_id=1696408878]
 navigation_mesh = ExtResource("4_outdoor_nav")
 
-[node name="ZombieDirector" type="Node3D" parent="."]
+[node name="ZombieDirector" type="Node3D" parent="." unique_id=947561010]
 script = ExtResource("3_zombie_director")
 
-[node name="ZombieSpawner" type="MultiplayerSpawner" parent="ZombieDirector"]
-_spawnable_scenes = PackedStringArray("res://assets/characters/Zombies/zombie.tscn")
+[node name="ZombieSpawner" type="MultiplayerSpawner" parent="ZombieDirector" unique_id=2104759497]
+_spawnable_scenes = PackedStringArray("uid://dpwxmtt55qr2", "res://src/scenes/scrap_pickup.tscn", "res://src/scenes/boss.tscn", "res://src/scenes/fragmento_2.tscn")
 spawn_path = NodePath("..")
 
-[node name="Players" type="Node3D" parent="."]
+[node name="Players" type="Node3D" parent="." unique_id=1707465101]
 
-[node name="PlayerSpawner" type="MultiplayerSpawner" parent="."]
-spawn_path = NodePath("../Players")
+[node name="PlayerSpawnPoints" type="Node3D" parent="." unique_id=453205788]
 
-[node name="PlayerSpawnPoints" type="Node3D" parent="."]
+[node name="Spawn1" type="Marker3D" parent="PlayerSpawnPoints" unique_id=1471815979]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.092144, -4.168, -31.736805)
 
-[node name="Spawn1" type="Marker3D" parent="PlayerSpawnPoints"]
-position = Vector3(-8.092144, -4.168, -31.736805)
+[node name="Spawn2" type="Marker3D" parent="PlayerSpawnPoints" unique_id=298806725]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.092144, -3.94, -31.736805)
 
-[node name="Spawn2" type="Marker3D" parent="PlayerSpawnPoints"]
-position = Vector3(-6.092144, -3.94, -31.736805)
+[node name="Spawn3" type="Marker3D" parent="PlayerSpawnPoints" unique_id=1758968182]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.092144, -4.403, -29.236805)
 
-[node name="Spawn3" type="Marker3D" parent="PlayerSpawnPoints"]
-position = Vector3(-8.092144, -4.403, -29.236805)
+[node name="Spawn4" type="Marker3D" parent="PlayerSpawnPoints" unique_id=535647289]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.092144, -4.198, -29.236805)
 
-[node name="Spawn4" type="Marker3D" parent="PlayerSpawnPoints"]
-position = Vector3(-6.092144, -4.198, -29.236805)
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="PlayerSpawnPoints" unique_id=1437230881]
+spawn_path = NodePath("../../Players")
 
-[node name="GameSession" type="Node" parent="."]
+[node name="GameSession" type="Node" parent="." unique_id=1830002275]
 script = ExtResource("5_game_session")
+spawner_path = NodePath("../PlayerSpawnPoints/PlayerSpawner")
+
+[node name="Fragmento" parent="." unique_id=1757233882 instance=ExtResource("6_3mso2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 211.313, -20.565125, -110.92329)
+
+[node name="Fragmento2" parent="." unique_id=776885503 instance=ExtResource("6_3mso2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.07547, -31.70086, -116.229836)
+
+[node name="Fragmento3" parent="." unique_id=973136408 instance=ExtResource("6_3mso2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.0677137, -1.1405187, -71.913734)
+
+[node name="Sketchfab_Scene" parent="." unique_id=606438349 instance=ExtResource("8_vdgck")]
+transform = Transform3D(0.032756228, 0.0064265165, -0.09426415, -0.019252196, 0.098129265, 0, 0.09250072, 0.01814792, 0.03338069, 131.79616, -25.574142, 93.0155)
+
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene" instance=ExtResource("9_workbench")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="Sketchfab_Scene2" parent="." unique_id=1751286686 instance=ExtResource("8_vdgck")]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, -18.762302, -3.7025614, -42.838932)
+
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene2" instance=ExtResource("9_workbench")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="Sketchfab_Scene3" parent="." unique_id=1614365969 instance=ExtResource("8_vdgck")]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, -16.634172, -13.82337, -261.55704)
+
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene3" instance=ExtResource("9_workbench")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="Sketchfab_Scene4" parent="." unique_id=1094097400 instance=ExtResource("8_vdgck")]
+transform = Transform3D(0.066653244, 0, -0.074547604, 0, 0.1, 0, 0.074547604, 0, 0.066653244, 196.38243, -20.771215, -103.198845)
+
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene4" instance=ExtResource("9_workbench")]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+
+[node name="Fragmento4" parent="." unique_id=457253727 instance=ExtResource("7_644tv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.176285, -14.107647, -226.36276)
+available = false

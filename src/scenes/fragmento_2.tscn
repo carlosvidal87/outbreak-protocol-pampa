@@ -1,0 +1,82 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="PackedScene" path="res://src/scenes/fragmento.tscn" id="1_fragmento"]
+[ext_resource type="Script" path="res://src/scripts/fragmento_2.gd" id="2_script"]
+
+[sub_resource type="StandardMaterial3D" id="RedCoreMaterial"]
+resource_local_to_scene = true
+transparency = 1
+albedo_color = Color(0.88, 0.08, 0.06, 0.86)
+metallic = 0.25
+roughness = 0.16
+emission_enabled = true
+emission = Color(1, 0.035, 0.02, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="StandardMaterial3D" id="RedRingMaterial"]
+resource_local_to_scene = true
+albedo_color = Color(0.48, 0.015, 0.01, 1)
+metallic = 0.72
+roughness = 0.22
+emission_enabled = true
+emission = Color(1, 0.025, 0.01, 1)
+emission_energy_multiplier = 3.8
+
+[sub_resource type="ParticleProcessMaterial" id="RedParticlesMaterial"]
+emission_shape = 1
+emission_sphere_radius = 0.62
+direction = Vector3(0, 1, 0)
+spread = 35.0
+gravity = Vector3(0, 0.18, 0)
+initial_velocity_min = 0.08
+initial_velocity_max = 0.3
+scale_min = 0.5
+scale_max = 1.25
+color = Color(1, 0.08, 0.035, 0.92)
+
+[sub_resource type="StandardMaterial3D" id="RedParticleMaterial"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 0.09, 0.04, 0.86)
+emission_enabled = true
+emission = Color(1, 0.025, 0.01, 1)
+emission_energy_multiplier = 3.0
+
+[sub_resource type="QuadMesh" id="RedParticleMesh"]
+material = SubResource("RedParticleMaterial")
+size = Vector2(0.055, 0.055)
+
+[sub_resource type="SceneReplicationConfig" id="Fragmento2Replication"]
+properties/0/path = NodePath(".:available")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:collected")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+
+[node name="Fragmento2" groups=["fragmentos_2"] instance=ExtResource("1_fragmento")]
+script = ExtResource("2_script")
+
+[node name="NetworkSynchronizer" parent="." index="0"]
+replication_config = SubResource("Fragmento2Replication")
+
+[node name="Core" parent="VisualRoot/FloatingArtifact" index="0"]
+material_override = SubResource("RedCoreMaterial")
+
+[node name="OuterRing" parent="VisualRoot/FloatingArtifact" index="1"]
+material_override = SubResource("RedRingMaterial")
+
+[node name="InnerRing" parent="VisualRoot/FloatingArtifact" index="2"]
+material_override = SubResource("RedCoreMaterial")
+
+[node name="Particles" parent="VisualRoot/FloatingArtifact" index="3"]
+process_material = SubResource("RedParticlesMaterial")
+draw_pass_1 = SubResource("RedParticleMesh")
+
+[node name="ArtifactLight" parent="VisualRoot" index="1"]
+light_color = Color(1, 0.06, 0.025, 1)
+light_energy = 3.2
+
+[editable path="VisualRoot"]
+[editable path="PickupArea"]

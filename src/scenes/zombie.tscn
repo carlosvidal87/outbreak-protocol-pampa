@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://src/scripts/zombie.gd" id="1_zombie_script"]
 [ext_resource type="PackedScene" path="res://assets/characters/Zombies/Ch10_nonPBR.fbx" id="2_model"]
@@ -10,6 +10,10 @@
 [ext_resource type="Script" path="res://src/scripts/head_hitbox.gd" id="8_head_hitbox"]
 [ext_resource type="Script" path="res://src/scripts/limb_hitbox.gd" id="9_limb_hitbox"]
 [ext_resource type="Script" path="res://src/scripts/torso_hitbox.gd" id="10_torso_hitbox"]
+[ext_resource type="AudioStream" path="res://assets/sounds/Idle Zombie.wav" id="11_idle_audio"]
+[ext_resource type="AudioStream" path="res://assets/sounds/Attack Zombie.wav" id="12_attack_audio"]
+[ext_resource type="AudioStream" path="res://assets/sounds/Morte Zombie.wav" id="13_death_audio"]
+[ext_resource type="AudioStream" path="res://assets/sounds/Run Zombie.wav" id="14_run_audio"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_body"]
 radius = 0.34
@@ -36,6 +40,30 @@ shape = SubResource("CapsuleShape_body")
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 path_desired_distance = 0.5
 target_desired_distance = 1.6
+
+[node name="IdleVoiceAudio" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("11_idle_audio")
+volume_db = -9.0
+unit_size = 4.0
+max_distance = 34.0
+
+[node name="AttackAudio" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("12_attack_audio")
+volume_db = -5.0
+unit_size = 4.0
+max_distance = 38.0
+
+[node name="DeathAudio" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("13_death_audio")
+volume_db = -4.0
+unit_size = 5.0
+max_distance = 42.0
+
+[node name="RunAudio" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("14_run_audio")
+volume_db = -12.0
+unit_size = 3.0
+max_distance = 28.0
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
 

@@ -8,6 +8,7 @@ signal firing()
 signal reloading()
 signal meleeing()
 signal taking_weapon()
+signal ownership_changed()
 
 #region Export vars
 @export var inventory : Dictionary = {
@@ -90,6 +91,7 @@ var animation : AnimationTree
 var state_machine : AnimationNodeStateMachinePlayback
 var idle_anim_speed : float
 var muzzlePoint : Node3D
+var reload_audio_player: AudioStreamPlayer3D = null
 
 var start_pos : Vector3
 var ads_pos : Vector3
@@ -100,6 +102,15 @@ var start_fov : float
 
 var max_magazine : int
 var magazine : int
+var reload_pending := false
+var reload_state_entered := false
+var combat_enabled := true
+
+# Slots canonicos do projeto: C19, SMG45, AK, LMG63, Sawnoff e faca.
+# O inventario continua com seis entradas para preservar a correspondencia de
+# rede, mas apenas C19 e faca ficam disponiveis no inicio da partida.
+var owned_weapon_slots: Array[bool] = [true, false, false, false, false, true]
+var weapon_upgrades: Dictionary = {}
 
 var sway_rotation_target : Vector3
 var recoiling : Vector2 = Vector2.ZERO
@@ -127,12 +138,83 @@ func _ready() -> void:
 		top_level = true
 	if ads_dynamic_fov and camera:
 		start_fov = camera.fov
+	for slot in inventory["weapons"].size():
+		weapon_upgrades[slot] = {
+			"damage_level": 0,
+			"fast_reload": false,
+			"extended_mag": false,
+			"rapid_fire": false,
+		}
 	take_weapon(0)
 
 
 func update_inventory():
 	inventory["weapons"][weapon_index][1] = magazine
 	update_ammo.emit(magazine, inventory["ammo"][weapon.get_meta("ammo_type", "none")], weapon.get_meta("ammo_type", "none"))
+
+
+func is_weapon_owned(slot: int) -> bool:
+	return slot >= 0 and slot < owned_weapon_slots.size() and owned_weapon_slots[slot]
+
+
+func unlock_weapon(slot: int) -> bool:
+	if slot < 0 or slot >= owned_weapon_slots.size() or owned_weapon_slots[slot]:
+		return false
+	owned_weapon_slots[slot] = true
+	ownership_changed.emit()
+	return true
+
+
+func set_owned_weapon_slots(slots: Array) -> void:
+	for slot in owned_weapon_slots.size():
+		owned_weapon_slots[slot] = slot < slots.size() and bool(slots[slot])
+	# C19 nunca pode ficar bloqueada porque e a arma inicial segura.
+	owned_weapon_slots[0] = true
+	ownership_changed.emit()
+
+
+func set_weapon_upgrades(slot: int, upgrades: Dictionary) -> void:
+	if slot < 0 or slot >= inventory["weapons"].size():
+		return
+	var normalized := upgrades.duplicate(true)
+	if weapon_upgrades.get(slot, {}) == normalized:
+		return
+	weapon_upgrades[slot] = normalized
+	if weapon and weapon_index == slot:
+		_reinstantiate_current_weapon()
+
+
+func get_weapon_upgrades(slot: int) -> Dictionary:
+	return (weapon_upgrades.get(slot, {}) as Dictionary).duplicate(true)
+
+
+func get_weapon_slot_id(slot: int) -> int:
+	if slot < 0 or slot >= inventory["weapons"].size():
+		return -1
+	return int(inventory["weapons"][slot][0])
+
+
+func set_combat_enabled(enabled: bool) -> void:
+	combat_enabled = enabled
+	if enabled:
+		return
+	ads = false
+	aiming.emit(false)
+	if state_machine:
+		var current_state := state_machine.get_current_node()
+		if current_state == &"fire" or current_state == &"melee":
+			state_machine.travel("idle")
+
+
+func select_relative_weapon(direction: int) -> void:
+	if direction == 0:
+		return
+	var candidate := weapon_index
+	for _attempt in owned_weapon_slots.size():
+		candidate = wrapi(candidate + signi(direction), 0, owned_weapon_slots.size())
+		if is_weapon_owned(candidate):
+			take_weapon(candidate)
+			return
 
 func aim(toggle:bool=true) -> void:
 	if toggle and (state_machine.get_current_node() != "idle" and state_machine.get_current_node() != "fire"):
@@ -151,6 +233,8 @@ func aim(toggle:bool=true) -> void:
 
 func reload() -> void:
 	if inventory["ammo"][weapon.get_meta("ammo_type", "none")] > 0:
+		reload_pending = true
+		reload_state_entered = false
 		if magazine > 0 and "reload_full" in animation.get_animation_list():
 			state_machine.travel("reload_full")
 		else:
@@ -366,6 +450,8 @@ func camera_shake():
 
 func take_weapon(inventory_index:int) -> void:
 	inventory_index = wrapi(inventory_index, 0, inventory["weapons"].size())
+	if not is_weapon_owned(inventory_index):
+		return
 	var inventory_weapon = inventory["weapons"][inventory_index]
 	var index = inventory_weapon[0] # Weapon index of weapons array
 	index = clampi(index, 0, weapons.size()-1)
@@ -390,9 +476,15 @@ func take_weapon(inventory_index:int) -> void:
 	weapon_index = inventory_index
 	weapon_change = inventory_index
 	animation = weapon.get_node("AnimationTree")
+	# Cada jogador precisa de um grafo proprio. Sem esta copia, alterar a
+	# timeline de recarga de uma instancia modifica o recurso compartilhado e
+	# faz outras melhorias herdarem a recarga rapida.
+	animation.tree_root = animation.tree_root.duplicate(true)
 	state_machine = animation["parameters/playback"]
+	_apply_current_weapon_upgrades()
 	idle_anim_speed = animation.tree_root.get_node("idle").timeline_length
 	muzzlePoint = weapon.find_child("MuzzlePoint")
+	reload_audio_player = weapon.find_child("AudioStreamPlayer3D", true, false) as AudioStreamPlayer3D
 
 	start_pos = weapon.position
 	ads_pos = weapon.get_meta("ads_pos", start_pos)
@@ -411,6 +503,56 @@ func take_weapon(inventory_index:int) -> void:
 	animation.connect("animation_finished", _on_animation_tree_animation_finished)
 	animation.connect("animation_started", _on_animation_tree_animation_started)
 
+
+func _apply_current_weapon_upgrades() -> void:
+	var upgrades := get_weapon_upgrades(weapon_index)
+	var damage_level := clampi(int(upgrades.get("damage_level", 0)), 0, 3)
+	var damage_multipliers := [1.0, 1.15, 1.30, 1.50]
+	var base_damage := float(weapon.get_meta("damage", 0.0))
+	weapon.set_meta("base_damage", base_damage)
+	weapon.set_meta("damage", base_damage * float(damage_multipliers[damage_level]))
+
+	var base_magazine := int(weapon.get_meta("max_magazine", 0))
+	weapon.set_meta("base_max_magazine", base_magazine)
+	if bool(upgrades.get("extended_mag", false)) and base_magazine > 0:
+		var extended_capacity := 4 if weapon_index == 4 else ceili(float(base_magazine) * 1.5)
+		weapon.set_meta("max_magazine", extended_capacity)
+
+	if bool(upgrades.get("rapid_fire", false)):
+		_scale_animation_node("fire", 0.8)
+	if bool(upgrades.get("fast_reload", false)):
+		_scale_animation_node("reload", 0.6)
+		_scale_animation_node("reload_full", 0.6)
+
+
+func _scale_animation_node(node_name: String, multiplier: float) -> void:
+	var node := animation.tree_root.get_node(node_name) as AnimationNodeAnimation
+	if node:
+		var original_length := node.timeline_length
+		if not node.use_custom_timeline or original_length <= 0.0:
+			var clip := animation.get_animation(node.animation) as Animation
+			if not clip:
+				return
+			original_length = clip.length
+		node.use_custom_timeline = true
+		node.timeline_length = original_length * multiplier
+		node.stretch_time_scale = true
+
+
+func _reinstantiate_current_weapon() -> void:
+	if not weapon:
+		return
+	update_inventory()
+	if animation:
+		if animation.animation_finished.is_connected(_on_animation_tree_animation_finished):
+			animation.animation_finished.disconnect(_on_animation_tree_animation_finished)
+		if animation.animation_started.is_connected(_on_animation_tree_animation_started):
+			animation.animation_started.disconnect(_on_animation_tree_animation_started)
+	remove_child(weapon)
+	weapon.queue_free()
+	weapon = null
+	take_weapon(weapon_index)
+
 func hide_weapon() -> void:
 	animation.disconnect("animation_finished", _on_animation_tree_animation_finished)
 	animation.disconnect("animation_started", _on_animation_tree_animation_started)
@@ -419,7 +561,7 @@ func hide_weapon() -> void:
 	weapon.queue_free()
 
 func _input(_event) -> void:
-	if weapon != null:
+	if combat_enabled and weapon != null:
 		# Single fire
 		if !weapon.get_meta("auto", false):
 			if Input.is_action_just_pressed(action_fire) and (magazine > 0 or max_magazine == 0):
@@ -435,12 +577,18 @@ func _input(_event) -> void:
 		if Input.is_action_just_pressed(action_ads):
 			aim()
 		if Input.is_action_just_pressed(action_next_weapon):
-			take_weapon(weapon_index+1)
+			select_relative_weapon(1)
 		if Input.is_action_just_pressed(action_previous_weapon):
-			take_weapon(weapon_index-1)
+			select_relative_weapon(-1)
 
 func _process(delta) -> void:
 	if weapon != null:
+		if reload_pending and state_machine:
+			var reload_state := state_machine.get_current_node()
+			if reload_state == &"reload" or reload_state == &"reload_full":
+				reload_state_entered = true
+			elif reload_state_entered and reload_state == &"idle":
+				_complete_reload()
 		# ADS animation. Position and rotation are both authored per weapon so the
 		# iron sight aligns with the camera instead of moving the model into it.
 		if ads and (weapon.position != ads_pos or weapon.rotation != ads_rotation):
@@ -454,7 +602,7 @@ func _process(delta) -> void:
 			camera.fov = lerpf(camera.fov, target_fov, minf(weapon.get_meta("delta", 1.5) * delta_multiplier * delta, 1.0))
 
 		# Automatic fire
-		if weapon.get_meta("auto", false):
+		if combat_enabled and weapon.get_meta("auto", false):
 			if Input.is_action_pressed(action_fire) and (magazine > 0 or max_magazine == 0):
 				state_machine.travel("fire")
 			elif auto_reload and Input.is_action_pressed(action_fire) and magazine == 0 and max_magazine > 0:
@@ -496,21 +644,7 @@ func _physics_process(delta) -> void:
 func _on_animation_tree_animation_finished(anim_name: StringName) -> void:
 	# Reload magazine
 	if anim_name == "reload" or anim_name == "reload_full":
-		if realistic_reloading:
-			if inventory["ammo"][weapon.get_meta("ammo_type", "none")] >= max_magazine:
-				inventory["ammo"][weapon.get_meta("ammo_type", "none")] -= max_magazine
-				magazine = max_magazine
-			else:
-				magazine = inventory["ammo"][weapon.get_meta("ammo_type", "none")]
-				inventory["ammo"][weapon.get_meta("ammo_type", "none")] = 0
-		else:
-			if inventory["ammo"][weapon.get_meta("ammo_type", "none")] >= max_magazine-magazine:
-				inventory["ammo"][weapon.get_meta("ammo_type", "none")] -= max_magazine-magazine
-				magazine = max_magazine
-			else:
-				magazine += inventory["ammo"][weapon.get_meta("ammo_type", "none")]
-				inventory["ammo"][weapon.get_meta("ammo_type", "none")] = 0
-		update_inventory()
+		_complete_reload()
 	# Remove weapon
 	if anim_name == "hide":
 		hide_weapon()
@@ -519,6 +653,10 @@ func _on_animation_tree_animation_finished(anim_name: StringName) -> void:
 		recoiling = Vector2.ZERO
 
 func _on_animation_tree_animation_started(anim_name: StringName) -> void:
+	if not combat_enabled and (anim_name == &"fire" or anim_name == &"melee"):
+		if state_machine:
+			state_machine.travel("idle")
+		return
 	# Show weapon on animationTree start
 	if anim_name == "take" and !weapon.visible:
 		weapon.visible = true
@@ -544,4 +682,34 @@ func _on_animation_tree_animation_started(anim_name: StringName) -> void:
 	if anim_name == "take":
 		taking_weapon.emit()
 	if anim_name == "reload" or anim_name == "reload_full":
+		_set_reload_audio_speed(true)
 		reloading.emit()
+
+
+func _complete_reload() -> void:
+	if not reload_pending or not weapon:
+		return
+	reload_pending = false
+	reload_state_entered = false
+	_set_reload_audio_speed(false)
+	var ammo_type: String = weapon.get_meta("ammo_type", "none")
+	if realistic_reloading:
+		if inventory["ammo"][ammo_type] >= max_magazine:
+			inventory["ammo"][ammo_type] -= max_magazine
+			magazine = max_magazine
+		else:
+			magazine = inventory["ammo"][ammo_type]
+			inventory["ammo"][ammo_type] = 0
+	else:
+		var needed := max_magazine - magazine
+		var supplied := mini(int(inventory["ammo"][ammo_type]), needed)
+		inventory["ammo"][ammo_type] -= supplied
+		magazine += supplied
+	update_inventory()
+
+
+func _set_reload_audio_speed(fast: bool) -> void:
+	if not reload_audio_player:
+		return
+	var has_fast_reload := bool(get_weapon_upgrades(weapon_index).get("fast_reload", false))
+	reload_audio_player.pitch_scale = (1.0 / 0.6) if fast and has_fast_reload else 1.0

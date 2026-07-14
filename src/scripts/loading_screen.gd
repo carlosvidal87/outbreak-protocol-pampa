@@ -10,6 +10,8 @@ const SHADE_COLOR := Color(0.0, 0.0, 0.0, 0.34)
 const FADE_IN_TIME := 0.28
 const FADE_OUT_TIME := 0.28
 const READY_PROGRESS := 0.96
+const MULTIPLAYER_READY_TIMEOUT := 120.0
+const MENU_SCENE := "res://src/scenes/main_menu.tscn"
 
 var progress_track: Control = null
 var progress_fill: ColorRect = null
@@ -190,6 +192,7 @@ func _mount_gameplay_scene(packed_scene: PackedScene) -> void:
 		return
 
 	_set_if_property(gameplay_scene, "use_external_loading_screen", true)
+	_disable_invalid_concave_collisions(gameplay_scene)
 
 	var previous_scene := get_tree().current_scene
 	get_tree().root.add_child(gameplay_scene)
@@ -202,11 +205,52 @@ func _mount_gameplay_scene(packed_scene: PackedScene) -> void:
 	else:
 		await get_tree().process_frame
 
+	if progress_label:
+		progress_label.custom_minimum_size.x = 220.0
+		progress_label.text = "SINCRONIZANDO"
+	var gameplay_ready := await _wait_for_local_gameplay_ready(gameplay_scene)
+	if not gameplay_ready:
+		await _abort_multiplayer_loading(gameplay_scene)
+		return
+
 	displayed_progress = 1.0
 	_update_progress_ui(displayed_progress)
 	await get_tree().process_frame
 	await _fade_loading_out()
 	queue_free()
+
+
+func _wait_for_local_gameplay_ready(gameplay_scene: Node) -> bool:
+	var game_session := gameplay_scene.get_node_or_null("GameSession")
+	if not game_session or not game_session.has_method("is_local_gameplay_ready"):
+		return true
+	var started_at := Time.get_ticks_msec()
+	var last_status_second := -1
+	while is_instance_valid(game_session) and not bool(game_session.call("is_local_gameplay_ready")):
+		if multiplayer.multiplayer_peer == null and NetworkManager.state == NetworkManager.SessionState.OFFLINE:
+			return false
+		var elapsed_ms := Time.get_ticks_msec() - started_at
+		var elapsed_second := int(elapsed_ms / 1000.0)
+		if elapsed_second != last_status_second:
+			last_status_second = elapsed_second
+			if progress_label:
+				progress_label.text = NetworkManager.get_loading_wait_description()
+		if elapsed_ms >= int(MULTIPLAYER_READY_TIMEOUT * 1000.0):
+			push_error("[NET] Timeout aguardando personagem e camera locais. Estado=%d peers=%s prontos=%s faltando=%s" % [NetworkManager.state, NetworkManager.get_alive_peer_ids(), NetworkManager.server_ready_peer_ids, NetworkManager.get_server_missing_map_ready_peer_ids()])
+			return false
+		await get_tree().process_frame
+	return is_instance_valid(game_session)
+
+
+func _abort_multiplayer_loading(gameplay_scene: Node) -> void:
+	if progress_label:
+		progress_label.text = "FALHA NA SINCRONIZACAO"
+	NetworkManager.leave_session("O mapa nao sincronizou. Verifique a conexao UDP 7000 e tente novamente.")
+	get_tree().current_scene = self
+	if is_instance_valid(gameplay_scene):
+		gameplay_scene.queue_free()
+	await get_tree().process_frame
+	get_tree().change_scene_to_file(MENU_SCENE)
 
 
 func _fade_from_black() -> void:
@@ -234,3 +278,29 @@ func _set_if_property(object: Object, property_name: String, value: Variant) -> 
 		if property.get("name", "") == property_name:
 			object.set(property_name, value)
 			return
+
+
+func _disable_invalid_concave_collisions(root: Node) -> void:
+	var disabled_count := 0
+	for candidate in root.find_children("*", "CollisionShape3D", true, false):
+		var collision := candidate as CollisionShape3D
+		if not collision or not collision.shape is ConcavePolygonShape3D:
+			continue
+		var faces: PackedVector3Array = (collision.shape as ConcavePolygonShape3D).data
+		if _has_usable_triangle(faces):
+			continue
+		collision.disabled = true
+		disabled_count += 1
+	if disabled_count > 0:
+		print("[PHYSICS] %d colisoes concavas invalidas foram desativadas." % disabled_count)
+
+
+func _has_usable_triangle(faces: PackedVector3Array) -> bool:
+	if faces.size() < 3 or faces.size() % 3 != 0:
+		return false
+	for index in range(0, faces.size(), 3):
+		var edge_a: Vector3 = faces[index + 1] - faces[index]
+		var edge_b: Vector3 = faces[index + 2] - faces[index]
+		if edge_a.cross(edge_b).length_squared() > 0.0000000001:
+			return true
+	return false

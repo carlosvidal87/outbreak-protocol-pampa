@@ -7,7 +7,18 @@ const EXPECTED_WEAPONS := ["fps-c19", "fps-smg45", "fps-ak", "fps-lmg63", "fps-s
 
 func _ready() -> void:
 	var fps_hands: Node3D = player.get_node("Camera3D/FPSHands")
+	if not fps_hands.call("is_weapon_owned", 0) or not fps_hands.call("is_weapon_owned", 5):
+		push_error("[FPS HANDS TEST] C19 e faca precisam iniciar liberadas.")
+		get_tree().quit(1)
+		return
+	for locked_slot in range(1, 5):
+		if fps_hands.call("is_weapon_owned", locked_slot):
+			push_error("[FPS HANDS TEST] Slot %d iniciou liberado." % (locked_slot + 1))
+			get_tree().quit(1)
+			return
 	for slot in range(EXPECTED_WEAPONS.size()):
+		if slot > 0 and slot < 5:
+			fps_hands.call("unlock_weapon", slot)
 		fps_hands.take_weapon(slot)
 		await get_tree().create_timer(2.0).timeout
 		if not fps_hands.weapon or fps_hands.weapon.name != EXPECTED_WEAPONS[slot]:
@@ -37,6 +48,9 @@ func _ready() -> void:
 			print("[FPS HANDS TEST] %s recarga=%s duracao=%.2fs" % [EXPECTED_WEAPONS[slot], reload_name, reload_animation.length if reload_animation else -1.0])
 			fps_hands.reload()
 			await _wait_for_idle(fps_hands, reload_timeout)
+			# O AnimationTree pode publicar o retorno para idle um frame antes do
+			# controlador finalizar a transferencia da reserva para o carregador.
+			await get_tree().process_frame
 			if fps_hands.magazine != max_magazine:
 				push_error("[FPS HANDS TEST] %s nao concluiu a recarga. estado=%s pente=%d/%d reserva=%d" % [
 					EXPECTED_WEAPONS[slot],
@@ -49,6 +63,9 @@ func _ready() -> void:
 				return
 		print("[FPS HANDS TEST] Slot %d: %s OK" % [slot + 1, fps_hands.weapon.name])
 	print("[FPS HANDS TEST] Todas as seis armas carregaram e alternaram corretamente.")
+	player.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	get_tree().quit(0)
 
 

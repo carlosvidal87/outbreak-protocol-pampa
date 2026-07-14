@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://50kdrn4naaa4"
+path="res://.godot/imported/Monster Running.mp3-115367b04e02e9dd4f5c081d4bc6fe38.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/horror_sfx_vol_1 (1)/Sons Monstro/Monster Running.mp3"
+dest_files=["res://.godot/imported/Monster Running.mp3-115367b04e02e9dd4f5c081d4bc6fe38.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

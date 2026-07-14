@@ -62,7 +62,7 @@ func _on_zombie_died(death_pos: Vector3) -> void:
 
 
 func _spawn_powerup_at(pos: Vector3) -> void:
-	var powerup_types = ["max_ammo", "insta_kill", "double_points", "nuke", "instant_money"]
+	var powerup_types = ["max_ammo", "insta_kill", "nuke"]
 	var selected_type = powerup_types[randi() % powerup_types.size()]
 
 	var powerup_script = preload("res://src/scripts/powerup.gd")

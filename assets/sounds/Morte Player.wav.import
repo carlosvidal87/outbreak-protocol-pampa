@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://sd417x4pxlxw"
+path="res://.godot/imported/Morte Player.wav-12fbfe1de5576df22907a1d5a3e5f80b.sample"
+
+[deps]
+
+source_file="res://assets/sounds/Morte Player.wav"
+dest_files=["res://.godot/imported/Morte Player.wav-12fbfe1de5576df22907a1d5a3e5f80b.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

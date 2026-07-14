@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dp53geuths8et"
+path="res://.godot/imported/Dano Player.wav-35f15ba21386db0c69b6343a29da8ea3.sample"
+
+[deps]
+
+source_file="res://assets/sounds/Dano Player.wav"
+dest_files=["res://.godot/imported/Dano Player.wav-35f15ba21386db0c69b6343a29da8ea3.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

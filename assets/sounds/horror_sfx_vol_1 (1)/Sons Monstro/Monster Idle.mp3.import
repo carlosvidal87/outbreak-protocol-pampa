@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://n6gytwa1e8ak"
+path="res://.godot/imported/Monster Idle.mp3-7a0398a1ca4b833d3a1eaff2e5bd4010.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/horror_sfx_vol_1 (1)/Sons Monstro/Monster Idle.mp3"
+dest_files=["res://.godot/imported/Monster Idle.mp3-7a0398a1ca4b833d3a1eaff2e5bd4010.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

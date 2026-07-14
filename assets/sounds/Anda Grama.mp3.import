@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://kt2xq1jreeyn"
+path="res://.godot/imported/Anda Grama.mp3-11f848bacd3369573c5cee32055aec33.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/Anda Grama.mp3"
+dest_files=["res://.godot/imported/Anda Grama.mp3-11f848bacd3369573c5cee32055aec33.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

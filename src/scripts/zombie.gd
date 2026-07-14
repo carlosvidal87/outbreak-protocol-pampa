@@ -1,12 +1,14 @@
 extends CharacterBody3D
 
+const IndustrialZone := preload("res://src/scripts/industrial_zone.gd")
+
 signal zombie_died(death_position: Vector3)
 signal recycle_requested(zombie: Node3D)
 signal stuck_detected(zombie: Node3D)
 
 const BASE_HP := 100.0
 const BASE_SPEED := 2.0
-const RUN_SPEED := 3.2
+const RUN_SPEED := 4.6
 const ATTACK_RANGE := 2.0
 const ATTACK_DAMAGE := 10.0
 const ATTACK_COOLDOWN := 1.5
@@ -24,12 +26,23 @@ const STUCK_REPATH_ATTEMPTS := 2
 const OBSTACLE_PROBE_DISTANCE := 1.2
 const NETWORK_INTERPOLATION_SPEED := 14.0
 const NETWORK_SNAP_DISTANCE := 10.0
+const LOCOMOTION_ANIMATION_MIN_SCALE := 0.85
+const LOCOMOTION_ANIMATION_MAX_SCALE := 1.25
 
 const ANIM_IDLE := "idle"
 const ANIM_WALK := "walk"
 const ANIM_RUN := "run"
 const ANIM_ATTACK := "attack"
 const ANIM_DIE := "die"
+const AUDIO_EVENT_ATTACK := 0
+const AUDIO_EVENT_DEATH := 1
+const IDLE_VOICE_SEGMENTS := [
+	Vector2(0.20, 3.60),
+	Vector2(4.35, 5.50),
+	Vector2(5.75, 8.10),
+	Vector2(8.30, 10.50),
+	Vector2(10.70, 14.25),
+]
 
 const HITBOX_BONES := {
 	"CollisionShape3D10": "mixamorig5_Head",
@@ -56,7 +69,7 @@ static var cached_attack_impact_delay := -1.0
 @export var synchronize_speed_with_animation := true
 @export_range(1.0, 1.25, 0.01) var body_scale := 1.15
 @export_range(1.0, 1.5, 0.05) var chase_speed_multiplier := 1.10
-@export_range(1.0, 2.0, 0.05) var behind_player_speed_multiplier := 1.45
+@export_range(1.0, 1.35, 0.05) var behind_player_speed_multiplier := 1.15
 
 var state := State.WANDER
 var hp := BASE_HP
@@ -84,8 +97,19 @@ var replicated_visual_runner := false
 var replicated_attack_sequence := -1
 var network_position := Vector3.ZERO
 var network_rotation := Vector3.ZERO
+var base_max_hp := BASE_HP
+var base_run_speed := RUN_SPEED
+var difficulty_health_multiplier := 1.0
+var difficulty_runner_speed_multiplier := 1.0
+var idle_voice_delay := 0.0
+var idle_voice_remaining := 0.0
+var navigation_goal := Vector3.ZERO
 
 @onready var nav_agent: NavigationAgent3D = $NavigationAgent3D
+@onready var idle_voice_audio: AudioStreamPlayer3D = $IdleVoiceAudio
+@onready var attack_audio: AudioStreamPlayer3D = $AttackAudio
+@onready var death_audio: AudioStreamPlayer3D = $DeathAudio
+@onready var run_audio: AudioStreamPlayer3D = $RunAudio
 
 
 func _ready() -> void:
@@ -101,11 +125,15 @@ func _ready() -> void:
 	_attach_hitboxes_to_skeleton()
 	_configure_animation_loops()
 	_synchronize_locomotion_speed()
+	base_max_hp = max_hp
+	base_run_speed = maxf(run_speed, RUN_SPEED)
+	run_speed = base_run_speed
 	if cached_attack_impact_delay < 0.0:
 		cached_attack_impact_delay = _measure_attack_impact_time()
 	attack_impact_delay = cached_attack_impact_delay
 	_connect_animation_finished()
 	_configure_navigation_avoidance()
+	idle_voice_delay = randf_range(5.0, 12.0)
 
 	set_physics_process(false)
 	await get_tree().physics_frame
@@ -168,7 +196,9 @@ func _process(delta: float) -> void:
 	if multiplayer.multiplayer_peer and not multiplayer.is_server():
 		_interpolate_network_transform(delta)
 		_update_replicated_visual()
+		_update_replicated_locomotion_speed()
 	_update_animated_hitboxes()
+	_update_audio(delta)
 
 
 func _update_replicated_visual() -> void:
@@ -186,6 +216,13 @@ func _update_replicated_visual() -> void:
 			_play_anim(ANIM_RUN if is_running else ANIM_WALK)
 		_:
 			_play_anim(ANIM_WALK)
+
+
+func _update_replicated_locomotion_speed() -> void:
+	if state not in [State.WANDER, State.CHASE, State.SEARCH]:
+		return
+	var replicated_speed: float = run_speed * chase_speed_multiplier if is_running else move_speed
+	_update_locomotion_playback(replicated_speed)
 
 
 func take_damage(amount: float, is_headshot: bool = false) -> void:
@@ -223,6 +260,7 @@ func _do_attack() -> void:
 	if anim_player:
 		anim_player.speed_scale = 1.0
 	_play_anim(ANIM_ATTACK)
+	_broadcast_audio_event(AUDIO_EVENT_ATTACK)
 	attack_sequence += 1
 	var sequence: int = attack_sequence
 	get_tree().create_timer(attack_impact_delay).timeout.connect(_apply_attack_damage.bind(sequence))
@@ -244,6 +282,7 @@ func _die(is_headshot: bool = false) -> void:
 	set_physics_process(false)
 	_disable_hitboxes()
 	_play_anim(ANIM_DIE)
+	_broadcast_audio_event(AUDIO_EVENT_DEATH)
 	if is_headshot:
 		_handle_headshot_visual()
 	zombie_died.emit(global_position)
@@ -259,11 +298,12 @@ func _update_navigation_target(delta: float, target_position: Vector3) -> void:
 	nav_target_timer -= delta
 	if nav_target_timer > 0.0:
 		return
+	navigation_goal = target_position
 	var nav_map := get_world_3d().navigation_map
 	if NavigationServer3D.map_get_iteration_id(nav_map) == 0:
 		nav_target_timer = NAV_TARGET_UPDATE_INTERVAL
 		return
-	nav_agent.target_position = NavigationServer3D.map_get_closest_point(nav_map, target_position)
+	nav_agent.target_position = target_position if IndustrialZone.contains(target_position, 8.0) else NavigationServer3D.map_get_closest_point(nav_map, target_position)
 	nav_target_timer = NAV_TARGET_UPDATE_INTERVAL
 
 
@@ -305,8 +345,15 @@ func _get_chase_speed() -> float:
 func _update_locomotion_playback(actual_speed: float) -> void:
 	if not anim_player:
 		return
-	var reference_speed := (run_speed if is_running else move_speed) * chase_speed_multiplier
-	anim_player.speed_scale = actual_speed / maxf(reference_speed, 0.001)
+	var animation_base_speed := cached_run_speed if is_running and cached_run_speed > 0.0 else cached_walk_speed
+	if animation_base_speed <= 0.0:
+		animation_base_speed = run_speed if is_running else move_speed
+	var reference_speed := animation_base_speed * chase_speed_multiplier
+	anim_player.speed_scale = clampf(
+		actual_speed / maxf(reference_speed, 0.001),
+		LOCOMOTION_ANIMATION_MIN_SCALE,
+		LOCOMOTION_ANIMATION_MAX_SCALE
+	)
 
 
 func _steer_around_obstacle(direction: Vector3) -> Vector3:
@@ -335,6 +382,10 @@ func _direction_hits_obstacle(direction: Vector3) -> bool:
 
 
 func _get_chase_direction() -> Vector3:
+	if IndustrialZone.contains(global_position, 10.0) and navigation_goal != Vector3.ZERO:
+		var industrial_direction := navigation_goal - global_position
+		industrial_direction.y = 0.0
+		return industrial_direction
 	var nav_map := get_world_3d().navigation_map
 	if NavigationServer3D.map_get_iteration_id(nav_map) > 0 and not nav_agent.is_navigation_finished():
 		var next := nav_agent.get_next_path_position()
@@ -357,12 +408,13 @@ func _update_wander(delta: float) -> void:
 
 func _choose_wander_target() -> void:
 	var nav_map := get_world_3d().navigation_map
-	if NavigationServer3D.map_get_iteration_id(nav_map) == 0:
+	if NavigationServer3D.map_get_iteration_id(nav_map) == 0 and not IndustrialZone.contains(spawn_origin, 10.0):
 		return
 	var angle := randf() * TAU
 	var distance := randf_range(WANDER_RADIUS * 0.35, WANDER_RADIUS)
 	var raw_target := spawn_origin + Vector3(cos(angle) * distance, 0.0, sin(angle) * distance)
-	nav_agent.target_position = NavigationServer3D.map_get_closest_point(nav_map, raw_target)
+	navigation_goal = raw_target
+	nav_agent.target_position = raw_target if IndustrialZone.contains(raw_target, 8.0) else NavigationServer3D.map_get_closest_point(nav_map, raw_target)
 	wander_target_timer = WANDER_TARGET_INTERVAL
 
 
@@ -476,7 +528,19 @@ func _synchronize_locomotion_speed() -> void:
 	if cached_walk_speed > 0.0:
 		move_speed = cached_walk_speed
 	if cached_run_speed > 0.0:
-		run_speed = cached_run_speed
+		run_speed = maxf(run_speed, cached_run_speed)
+
+
+func set_difficulty(health_multiplier: float, runner_speed_multiplier: float) -> void:
+	var previous_max: float = maxf(max_hp, 1.0)
+	var health_ratio: float = clampf(hp / previous_max, 0.0, 1.0)
+	difficulty_health_multiplier = clampf(health_multiplier, 1.0, 4.0)
+	difficulty_runner_speed_multiplier = maxf(runner_speed_multiplier, 1.0)
+	max_hp = base_max_hp * difficulty_health_multiplier
+	hp = max_hp if not is_dead and health_ratio >= 0.999 else max_hp * health_ratio
+	run_speed = base_run_speed * difficulty_runner_speed_multiplier
+	if nav_agent:
+		nav_agent.max_speed = maxf(move_speed, run_speed) * chase_speed_multiplier * behind_player_speed_multiplier
 
 
 func _measure_animation_travel_speed(animation_name: String) -> float:
@@ -572,7 +636,7 @@ func _find_player() -> Node3D:
 		if candidate_state != null and int(candidate_state) != 0:
 			continue
 		var nav_map := get_world_3d().navigation_map
-		if NavigationServer3D.map_get_iteration_id(nav_map) > 0:
+		if NavigationServer3D.map_get_iteration_id(nav_map) > 0 and not IndustrialZone.contains(global_position, 8.0) and not IndustrialZone.contains((candidate as Node3D).global_position, 8.0):
 			var path := NavigationServer3D.map_get_path(nav_map, global_position, (candidate as Node3D).global_position, true)
 			if path.size() < 2 or path[path.size() - 1].distance_to((candidate as Node3D).global_position) > 6.0:
 				continue
@@ -642,11 +706,18 @@ func activate_from_pool(position: Vector3, target: Node3D, runner: bool, starts_
 	attack_timer = 0.0
 	attack_sequence += 1
 	spawn_origin = position
+	navigation_goal = position
 	last_known_player_position = target.global_position
 	wander_target_timer = 0.0
 	stuck_attempts = 0
 	stuck_check_timer = STUCK_CHECK_INTERVAL
 	last_progress_position = position
+	idle_voice_delay = randf_range(4.0, 10.0)
+	idle_voice_remaining = 0.0
+	idle_voice_audio.stop()
+	attack_audio.stop()
+	death_audio.stop()
+	run_audio.stop()
 	_reenable_hitboxes()
 	set_physics_process(true)
 	_change_state(State.CHASE if starts_aggressive else State.WANDER)
@@ -657,8 +728,58 @@ func deactivate_to_pool() -> void:
 	velocity = Vector3.ZERO
 	set_physics_process(false)
 	_disable_hitboxes()
+	idle_voice_audio.stop()
+	attack_audio.stop()
+	death_audio.stop()
+	run_audio.stop()
 	visible = false
 	process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func _update_audio(delta: float) -> void:
+	if is_dead or not visible:
+		return
+	if idle_voice_remaining > 0.0:
+		idle_voice_remaining -= delta
+		if idle_voice_remaining <= 0.0:
+			idle_voice_audio.stop()
+	var should_play_run := state == State.CHASE and is_running
+	if should_play_run:
+		if not run_audio.playing:
+			run_audio.pitch_scale = randf_range(0.96, 1.04)
+			run_audio.play()
+	else:
+		run_audio.stop()
+	idle_voice_delay -= delta
+	if idle_voice_delay <= 0.0 and state != State.ATTACK and not idle_voice_audio.playing:
+		var segment: Vector2 = IDLE_VOICE_SEGMENTS[randi() % IDLE_VOICE_SEGMENTS.size()]
+		idle_voice_audio.pitch_scale = randf_range(0.94, 1.06)
+		idle_voice_audio.play(segment.x)
+		idle_voice_remaining = segment.y - segment.x
+		idle_voice_delay = randf_range(14.0, 26.0)
+
+
+func _broadcast_audio_event(event_id: int) -> void:
+	if multiplayer.multiplayer_peer and multiplayer.is_server():
+		_play_audio_event.rpc(event_id)
+	else:
+		_play_audio_event(event_id)
+
+
+@rpc("authority", "call_local", "unreliable")
+func _play_audio_event(event_id: int) -> void:
+	match event_id:
+		AUDIO_EVENT_ATTACK:
+			idle_voice_audio.stop()
+			idle_voice_remaining = 0.0
+			attack_audio.pitch_scale = randf_range(0.96, 1.04)
+			attack_audio.play()
+		AUDIO_EVENT_DEATH:
+			idle_voice_audio.stop()
+			run_audio.stop()
+			attack_audio.stop()
+			death_audio.pitch_scale = randf_range(0.97, 1.03)
+			death_audio.play()
 
 
 func _reenable_hitboxes() -> void:
