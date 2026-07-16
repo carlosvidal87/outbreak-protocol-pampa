@@ -9,13 +9,13 @@
 [ext_resource type="PackedScene" path="res://src/scenes/fragmento_2.tscn" id="7_644tv"]
 [ext_resource type="PackedScene" uid="uid://bdrtewvablaby" path="res://assets/materials/workbench.glb" id="8_vdgck"]
 [ext_resource type="PackedScene" path="res://src/scenes/workbench_interaction.tscn" id="9_workbench"]
-[ext_resource type="AudioStream" path="res://assets/sounds/horror_sfx_vol_1 (1)/Ambient/Ambient Wind (5).mp3" id="10_ambient_wind"]
-[ext_resource type="Script" path="res://src/scripts/looping_audio_player.gd" id="11_audio_loop"]
+[ext_resource type="AudioStream" uid="uid://cowrjx1o3so1r" path="res://assets/sounds/horror_sfx_vol_1 (1)/Ambient/Ambient Wind (5).mp3" id="10_ambient_wind"]
+[ext_resource type="Script" uid="uid://c57vvc2siatvb" path="res://src/scripts/looping_audio_player.gd" id="11_audio_loop"]
 
 [node name="Node3D" type="Node3D" unique_id=1149959057]
 script = ExtResource("2_gameplay")
 
-[node name="AmbientWind" type="AudioStreamPlayer" parent="."]
+[node name="AmbientWind" type="AudioStreamPlayer" parent="." unique_id=1024790183]
 stream = ExtResource("10_ambient_wind")
 volume_db = -20.0
 autoplay = true
@@ -34,8 +34,10 @@ _spawnable_scenes = PackedStringArray("uid://dpwxmtt55qr2", "res://src/scenes/sc
 spawn_path = NodePath("..")
 
 [node name="Players" type="Node3D" parent="." unique_id=1707465101]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.196913, -8.569793, 248.54393)
 
 [node name="PlayerSpawnPoints" type="Node3D" parent="." unique_id=453205788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.689221, -3.5178351, 261.75983)
 
 [node name="Spawn1" type="Marker3D" parent="PlayerSpawnPoints" unique_id=1471815979]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.092144, -4.168, -31.736805)
@@ -68,25 +70,25 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.0677137, -1.1405187, -71.9
 [node name="Sketchfab_Scene" parent="." unique_id=606438349 instance=ExtResource("8_vdgck")]
 transform = Transform3D(0.032756228, 0.0064265165, -0.09426415, -0.019252196, 0.098129265, 0, 0.09250072, 0.01814792, 0.03338069, 131.79616, -25.574142, 93.0155)
 
-[node name="WorkbenchInteraction" parent="Sketchfab_Scene" instance=ExtResource("9_workbench")]
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene" unique_id=1628564860 instance=ExtResource("9_workbench")]
 transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="Sketchfab_Scene2" parent="." unique_id=1751286686 instance=ExtResource("8_vdgck")]
 transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, -18.762302, -3.7025614, -42.838932)
 
-[node name="WorkbenchInteraction" parent="Sketchfab_Scene2" instance=ExtResource("9_workbench")]
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene2" unique_id=846509794 instance=ExtResource("9_workbench")]
 transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="Sketchfab_Scene3" parent="." unique_id=1614365969 instance=ExtResource("8_vdgck")]
 transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, -16.634172, -13.82337, -261.55704)
 
-[node name="WorkbenchInteraction" parent="Sketchfab_Scene3" instance=ExtResource("9_workbench")]
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene3" unique_id=1050416212 instance=ExtResource("9_workbench")]
 transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="Sketchfab_Scene4" parent="." unique_id=1094097400 instance=ExtResource("8_vdgck")]
 transform = Transform3D(0.066653244, 0, -0.074547604, 0, 0.1, 0, 0.074547604, 0, 0.066653244, 196.38243, -20.771215, -103.198845)
 
-[node name="WorkbenchInteraction" parent="Sketchfab_Scene4" instance=ExtResource("9_workbench")]
+[node name="WorkbenchInteraction" parent="Sketchfab_Scene4" unique_id=208428889 instance=ExtResource("9_workbench")]
 transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
 
 [node name="Fragmento4" parent="." unique_id=457253727 instance=ExtResource("7_644tv")]

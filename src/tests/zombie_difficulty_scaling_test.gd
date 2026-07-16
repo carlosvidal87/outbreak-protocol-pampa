@@ -21,12 +21,50 @@ func _ready() -> void:
 	if not is_equal_approx(float(constants.get("DANGER_RUNNER_RATIO", 0.0)), 0.90):
 		_fail("Hordas e boss battle precisam ter 90 por cento de corredores.")
 		return
+	if not is_equal_approx(float(constants.get("CALM_RUNNER_RATIO", 0.0)), 0.15):
+		_fail("A fase controlada precisa manter 15 por cento de corredores.")
+		return
+	if not is_equal_approx(float(constants.get("CALM_RUNNER_DURATION", 0.0)), 120.0) or not is_equal_approx(float(constants.get("PRESSURE_RUNNER_DURATION", 0.0)), 60.0):
+		_fail("O ciclo de corredores precisa usar dois minutos controlados e um minuto de pressao.")
+		return
 	if constants.get("COLLECTIBLE_HORDE_SIZES", []) != [24, 36, 50]:
 		_fail("As hordas dos fragmentos azuis nao foram dobradas.")
 		return
-	director.call("_update_time_difficulty", 120.0)
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.15):
+		_fail("A partida nao iniciou na fase controlada.")
+		return
+	director.set("match_elapsed", 119.99)
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.15):
+		_fail("A fase controlada terminou antes dos dois minutos.")
+		return
+	var transition_zombie := ZOMBIE_SCENE.instantiate() as CharacterBody3D
+	add_child(transition_zombie)
+	await get_tree().physics_frame
+	transition_zombie.set("is_running", true)
+	var active_zombies: Array = director.get("active_zombies")
+	active_zombies.append(transition_zombie)
+	director.set("active_zombies", active_zombies)
+	director.call("_update_time_difficulty", 0.01)
 	if int(director.get("difficulty_stage")) != 1 or not is_equal_approx(float(director.get("current_health_multiplier")), 1.25):
 		_fail("A vida nao aumentou 25 por cento aos dois minutos.")
+		return
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.45):
+		_fail("A fase de pressao nao iniciou aos dois minutos.")
+		return
+	if not bool(transition_zombie.get("is_running")):
+		_fail("A troca de fase alterou um corredor que ja estava ativo.")
+		return
+	director.set("match_elapsed", 179.99)
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.45):
+		_fail("A fase de pressao terminou antes de completar um minuto.")
+		return
+	director.set("match_elapsed", 180.0)
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.15):
+		_fail("O ciclo nao retornou a fase controlada aos tres minutos.")
+		return
+	director.set("match_elapsed", 300.0)
+	if not is_equal_approx(float(director.call("_get_current_normal_runner_ratio")), 0.45):
+		_fail("O segundo ciclo nao voltou a fase de pressao aos cinco minutos.")
 		return
 	director.call("_update_time_difficulty", 120.0 * 20.0)
 	if not is_equal_approx(float(director.get("current_health_multiplier")), 4.0):

@@ -14,6 +14,10 @@ const COLLECTIBLE_HORDE_SIZES := [24, 36, 50]
 const DIFFICULTY_STAGE_DURATION := 120.0
 const HEALTH_INCREASE_PER_STAGE := 0.25
 const MAX_HEALTH_MULTIPLIER := 4.0
+const CALM_RUNNER_RATIO := 0.15
+const CALM_RUNNER_DURATION := 120.0
+const PRESSURE_RUNNER_DURATION := 60.0
+const RUNNER_CYCLE_DURATION := CALM_RUNNER_DURATION + PRESSURE_RUNNER_DURATION
 const DANGER_RUNNER_RATIO := 0.90
 const DANGER_RUNNER_SPEED_MULTIPLIER := 1.12
 const BOSS_COUNTDOWN := 8.0
@@ -570,7 +574,12 @@ func _activate_zombie(position: Vector3, player: Node3D, is_horde_spawn := false
 
 
 func _should_spawn_runner() -> bool:
-	return _should_spawn_runner_for_ratio(runner_ratio)
+	return _should_spawn_runner_for_ratio(_get_current_normal_runner_ratio())
+
+
+func _get_current_normal_runner_ratio() -> float:
+	var cycle_elapsed := fposmod(match_elapsed, RUNNER_CYCLE_DURATION)
+	return CALM_RUNNER_RATIO if cycle_elapsed < CALM_RUNNER_DURATION else runner_ratio
 
 
 func _should_spawn_runner_for_ratio(target_ratio: float) -> bool:

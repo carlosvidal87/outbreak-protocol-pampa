@@ -23,12 +23,15 @@ var readiness_retry_elapsed := 0.0
 
 func _ready() -> void:
 	add_to_group("game_session")
+	NetworkManager.log_diagnostic("game_session", "ready_entered", {"network_state": NetworkManager.state})
 	set_process(false)
 	player_spawner.spawn_function = _spawn_player
 	var gameplay_root := get_parent()
 	if gameplay_root.has_signal("startup_ready"):
+		NetworkManager.report_loading_status("map_startup_wait", 0.96, "Aguardando startup_ready")
 		await gameplay_root.startup_ready
 	startup_complete = true
+	NetworkManager.log_diagnostic("game_session", "map_startup_complete", {})
 	if NetworkManager.state in [NetworkManager.SessionState.LOADING, NetworkManager.SessionState.PLAYING]:
 		if not NetworkManager.player_left.is_connected(_remove_player):
 			NetworkManager.player_left.connect(_remove_player)
@@ -38,6 +41,7 @@ func _ready() -> void:
 			await get_tree().create_timer(NetworkManager.debug_map_ready_delay_seconds).timeout
 		if NetworkManager.state in [NetworkManager.SessionState.LOADING, NetworkManager.SessionState.PLAYING]:
 			NetworkManager.report_map_ready()
+			NetworkManager.report_loading_status("map_ready_reported", 0.97, "Mapa pronto no peer")
 			_try_start_multiplayer_world()
 		set_process(true)
 	else:
@@ -92,9 +96,11 @@ func _try_start_multiplayer_world() -> void:
 	if players_spawned or not multiplayer.is_server() or not NetworkManager.are_all_map_peers_ready():
 		return
 	players_spawned = true
+	NetworkManager.log_diagnostic("game_session", "spawning_players", {"peer_ids": NetworkManager.get_alive_peer_ids()})
 	for peer_id: int in NetworkManager.get_alive_peer_ids():
 		player_spawner.spawn(_make_spawn_data(peer_id))
 	multiplayer_world_ready = true
+	NetworkManager.log_diagnostic("game_session", "players_spawned", {"count": NetworkManager.get_alive_peer_ids().size()})
 	print("[NET] Servidor criou %d jogadores." % NetworkManager.get_alive_peer_ids().size())
 	call_deferred("_refresh_local_gameplay_ready")
 
@@ -119,6 +125,7 @@ func _mark_local_gameplay_ready() -> void:
 	multiplayer_world_ready = true
 	if multiplayer.multiplayer_peer:
 		NetworkManager.mark_playing()
+	NetworkManager.log_diagnostic("game_session", "local_gameplay_ready", {"local_peer_id": multiplayer.get_unique_id() if multiplayer.multiplayer_peer else 1})
 	print("[NET] Gameplay local pronto no peer %d." % (multiplayer.get_unique_id() if multiplayer.multiplayer_peer else 1))
 	local_gameplay_ready.emit()
 

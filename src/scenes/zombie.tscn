@@ -69,6 +69,7 @@ max_distance = 28.0
 
 [node name="AnimationPlayer" parent="Model" index="1"]
 libraries/ = SubResource("AnimationLibrary_zombie")
+autoplay = "walk"
 
 [node name="HeadHitbox" type="Area3D" parent="."]
 position = Vector3(0, 1.68, 0)

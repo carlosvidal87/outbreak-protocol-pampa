@@ -11,6 +11,8 @@ const MENU_SCENE := "res://src/scenes/main_menu.tscn"
 @onready var players_label: Label = $Center/Panel/Margin/Content/Players
 @onready var status_label: Label = $Center/Panel/Margin/Content/Status
 @onready var address_label: Label = $Center/Panel/Margin/Content/HostAddress
+@onready var diagnostic_path_label: Label = $Center/Panel/Margin/Content/DiagnosticPath
+@onready var copy_log_path_button: Button = $Center/Panel/Margin/Content/CopyLogPath
 
 var local_ready := false
 
@@ -21,6 +23,7 @@ func _ready() -> void:
 	join_button.pressed.connect(_join)
 	ready_button.pressed.connect(_toggle_ready)
 	start_button.pressed.connect(_start)
+	copy_log_path_button.pressed.connect(_copy_log_path)
 	$Center/Panel/Margin/Content/Back.pressed.connect(_back)
 	NetworkManager.lobby_changed.connect(_refresh_lobby)
 	NetworkManager.connection_failed.connect(_show_error)
@@ -30,6 +33,7 @@ func _ready() -> void:
 		_set_lobby_controls(false)
 	if not NetworkManager.last_message.is_empty():
 		status_label.text = NetworkManager.last_message
+	_update_diagnostic_path()
 
 
 func _host() -> void:
@@ -37,11 +41,13 @@ func _host() -> void:
 		status_label.text = "Lobby criado na porta UDP 7000."
 		var candidates := NetworkManager.get_local_radmin_candidates()
 		address_label.text = "IPv4 local/Radmin: %s" % (", ".join(candidates) if not candidates.is_empty() else "consulte o Radmin VPN")
+		_update_diagnostic_path()
 
 
 func _join() -> void:
 	status_label.text = "Conectando..."
 	NetworkManager.join_game(address_input.text, name_input.text)
+	_update_diagnostic_path()
 
 
 func _toggle_ready() -> void:
@@ -76,6 +82,7 @@ func _refresh_lobby(snapshot: Dictionary) -> void:
 	start_button.visible = multiplayer.is_server()
 	start_button.disabled = snapshot.is_empty() or snapshot.values().any(func(data: Dictionary) -> bool: return not bool(data.get("ready", false)))
 	status_label.text = "Lobby pronto. O host inicia quando todos confirmarem."
+	_update_diagnostic_path()
 
 
 func _set_lobby_controls(enabled: bool) -> void:
@@ -91,3 +98,17 @@ func _show_error(message: String) -> void:
 	status_label.text = message
 	status_label.modulate = Color(1.0, 0.42, 0.36)
 	_set_lobby_controls(false)
+	_update_diagnostic_path()
+
+
+func _update_diagnostic_path() -> void:
+	var path := NetworkManager.get_diagnostic_log_path()
+	diagnostic_path_label.text = "LOG MULTIPLAYER: %s" % path
+	diagnostic_path_label.tooltip_text = path
+	copy_log_path_button.disabled = path.is_empty()
+
+
+func _copy_log_path() -> void:
+	var path := NetworkManager.get_diagnostic_log_path()
+	DisplayServer.clipboard_set(path)
+	status_label.text = "Caminho do log copiado. Envie os arquivos de host e convidado para analise."

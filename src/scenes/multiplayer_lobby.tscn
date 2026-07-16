@@ -50,7 +50,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(620, 610)
+custom_minimum_size = Vector2(620, 690)
 layout_mode = 2
 theme_override_styles/panel = SubResource("Panel")
 
@@ -131,6 +131,16 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 text = "Crie uma partida ou conecte pelo IPv4 do Radmin."
 autowrap_mode = 2
+
+[node name="DiagnosticPath" type="Label" parent="Center/Panel/Margin/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "LOG MULTIPLAYER: user://multiplayer_logs"
+autowrap_mode = 2
+
+[node name="CopyLogPath" type="Button" parent="Center/Panel/Margin/Content"]
+layout_mode = 2
+text = "COPIAR CAMINHO DOS LOGS"
 
 [node name="Back" type="Button" parent="Center/Panel/Margin/Content"]
 layout_mode = 2
